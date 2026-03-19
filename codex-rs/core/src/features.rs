@@ -640,7 +640,7 @@ pub const FEATURES: &[FeatureSpec] = &[
         stage: Stage::Experimental {
             name: "Bubblewrap sandbox",
             menu_description: "Try the new linux sandbox based on bubblewrap.",
-            announcement: "NEW: Linux bubblewrap sandbox offers stronger filesystem and network controls than Landlock alone, including keeping .git and .codex read-only inside writable workspaces. Enable it in /experimental and restart Uxarion to try it.",
+            announcement: "NEW: Linux bubblewrap sandbox offers stronger filesystem and network controls than Landlock alone, including keeping .git and .uxarion read-only inside writable workspaces. Enable it in /experimental and restart Uxarion to try it.",
         },
         #[cfg(not(target_os = "linux"))]
         stage: Stage::UnderDevelopment,

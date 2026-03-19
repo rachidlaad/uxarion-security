@@ -5,8 +5,8 @@ expression: popup
   Upload logs?
 
   The following files will be sent:
-    • codex-logs.log
-    • codex-connectivity-diagnostics.txt
+    • uxarion-logs.log
+    • uxarion-connectivity-diagnostics.txt
 
   Connectivity diagnostics
     - OPENAI_BASE_URL is set and may affect connectivity.

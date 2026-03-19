@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 const OPENAI_BASE_URL_ENV_VAR: &str = "OPENAI_BASE_URL";
-pub const FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME: &str = "codex-connectivity-diagnostics.txt";
+pub const FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME: &str = "uxarion-connectivity-diagnostics.txt";
 const PROXY_ENV_VARS: &[&str] = &[
     "HTTP_PROXY",
     "http_proxy",

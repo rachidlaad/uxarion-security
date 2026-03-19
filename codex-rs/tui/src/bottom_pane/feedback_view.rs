@@ -527,7 +527,7 @@ pub(crate) fn feedback_upload_consent_params(
         Line::from("Upload logs?".bold()).into(),
         Line::from("").into(),
         Line::from("The following files will be sent:".dim()).into(),
-        Line::from(vec!["  • ".into(), "codex-logs.log".into()]).into(),
+        Line::from(vec!["  • ".into(), "uxarion-logs.log".into()]).into(),
     ];
     if let Some(path) = rollout_path.as_deref()
         && let Some(name) = path.file_name().map(|s| s.to_string_lossy().to_string())

@@ -236,7 +236,7 @@ impl FeedbackSnapshot {
 
     pub fn save_to_temp_file(&self) -> io::Result<PathBuf> {
         let dir = std::env::temp_dir();
-        let filename = format!("codex-feedback-{}.log", self.thread_id);
+        let filename = format!("uxarion-feedback-{}.log", self.thread_id);
         let path = dir.join(filename);
         fs::write(&path, self.as_bytes())?;
         Ok(path)
@@ -355,7 +355,7 @@ impl FeedbackSnapshot {
         if include_logs {
             attachments.push(Attachment {
                 buffer: logs_override.unwrap_or_else(|| self.bytes.clone()),
-                filename: String::from("codex-logs.log"),
+                filename: String::from("uxarion-logs.log"),
                 content_type: Some("text/plain".to_string()),
                 ty: None,
             });
@@ -517,7 +517,7 @@ mod tests {
 
     #[test]
     fn feedback_attachments_gate_connectivity_diagnostics() {
-        let extra_filename = format!("codex-feedback-extra-{}.jsonl", ThreadId::new());
+        let extra_filename = format!("uxarion-feedback-extra-{}.jsonl", ThreadId::new());
         let extra_path = std::env::temp_dir().join(&extra_filename);
         fs::write(&extra_path, "rollout").expect("extra attachment should be written");
 
@@ -540,7 +540,7 @@ mod tests {
                 .map(|attachment| attachment.filename.as_str())
                 .collect::<Vec<_>>(),
             vec![
-                "codex-logs.log",
+                "uxarion-logs.log",
                 FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME,
                 extra_filename.as_str()
             ]
@@ -557,6 +557,7 @@ mod tests {
         );
         let attachments_without_diagnostics = CodexFeedback::new()
             .snapshot(None)
+            .with_feedback_diagnostics(FeedbackDiagnostics::default())
             .feedback_attachments(true, &[], Some(vec![1]));
 
         assert_eq!(
@@ -564,7 +565,7 @@ mod tests {
                 .iter()
                 .map(|attachment| attachment.filename.as_str())
                 .collect::<Vec<_>>(),
-            vec!["codex-logs.log"]
+            vec!["uxarion-logs.log"]
         );
         assert_eq!(attachments_without_diagnostics[0].buffer, vec![1]);
         fs::remove_file(extra_path).expect("extra attachment should be removed");
