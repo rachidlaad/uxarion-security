@@ -1,0 +1,11 @@
+---
+source: tui/src/chatwidget/tests.rs
+assertion_line: 6315
+expression: popup
+---
+▌ Replace saved API key
+▌ The current saved key will be replaced
+▌
+▌ Paste your API key and press Enter
+
+Press enter to confirm or esc to go back

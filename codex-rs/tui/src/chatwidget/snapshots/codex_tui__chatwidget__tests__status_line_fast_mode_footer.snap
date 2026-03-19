@@ -1,0 +1,9 @@
+---
+source: tui/src/chatwidget/tests.rs
+expression: terminal.backend()
+---
+"                                                                                "
+"                                                                                "
+"› Ask Uxarion to assess a target                                                      "
+"                                                                                "
+"  Fast on                                                                       "

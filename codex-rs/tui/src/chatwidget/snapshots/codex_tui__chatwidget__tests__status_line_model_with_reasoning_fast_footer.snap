@@ -1,0 +1,9 @@
+---
+source: tui/src/chatwidget/tests.rs
+expression: terminal.backend()
+---
+"                                                                                "
+"                                                                                "
+"› Ask Uxarion to assess a target                                                      "
+"                                                                                "
+"  gpt-5.4 xhigh fast · 100% left · /tmp/project                                 "

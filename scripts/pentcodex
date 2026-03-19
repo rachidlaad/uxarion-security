@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec "${PENTCODEX_LAUNCHER:-/root/.cargo/bin/codex-security}" "$@"

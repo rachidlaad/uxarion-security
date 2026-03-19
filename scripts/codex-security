@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="${CODEX_SECURITY_REPO:-/mnt/c/codex-hacker}"
+BUILD_ROOT="${CODEX_SECURITY_BUILD_ROOT:-/tmp/codex-rs-target}"
+BIN="${CODEX_SECURITY_BIN:-$BUILD_ROOT/debug/codex}"
+SECURITY_HOME="${CODEX_SECURITY_HOME:-$HOME/.uxarion}"
+BASE_URL="${PENTEST_LOCAL_BASE_URL:-https://api.openai.com/v1}"
+ZAP_BASE_URL="${UXARION_ZAP_BASE_URL:-http://172.17.160.1:8080}"
+UPDATE_REMOTE="${UXARION_UPDATE_REMOTE:-uxarion}"
+UPDATE_BRANCH="${UXARION_UPDATE_BRANCH:-main}"
+UPDATE_REPO_URL="${UXARION_UPDATE_REPO_URL:-https://github.com/rachidlaad/uxarion-security}"
+
+ensure_config() {
+  mkdir -p "$SECURITY_HOME"
+
+  if [[ ! -f "$SECURITY_HOME/config.toml" ]]; then
+    cat >"$SECURITY_HOME/config.toml" <<'EOF'
+model = "gpt-5"
+model_provider = "pentest-local"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+[profiles.security]
+model = "gpt-5"
+model_provider = "pentest-local"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+EOF
+  fi
+}
+
+ensure_binary() {
+  if [[ -x "$BIN" ]] && ! find "$REPO_ROOT/codex-rs" -type f \
+    \( -name '*.rs' -o -name '*.md' -o -name 'Cargo.toml' -o -name 'justfile' \) \
+    -newer "$BIN" | grep -q .; then
+    return
+  fi
+
+  echo "Building Uxarion..." >&2
+  (
+    cd "$REPO_ROOT/codex-rs"
+    CARGO_TARGET_DIR="$BUILD_ROOT" cargo build -p codex-cli
+  )
+}
+
+ensure_update_remote() {
+  if git -C "$REPO_ROOT" remote get-url "$UPDATE_REMOTE" >/dev/null 2>&1; then
+    return
+  fi
+
+  git -C "$REPO_ROOT" remote add "$UPDATE_REMOTE" "$UPDATE_REPO_URL"
+}
+
+run_update() {
+  ensure_update_remote
+
+  echo "Updating Uxarion from $UPDATE_REMOTE/$UPDATE_BRANCH..." >&2
+  git -C "$REPO_ROOT" pull --ff-only "$UPDATE_REMOTE" "$UPDATE_BRANCH"
+
+  echo "Rebuilding Uxarion..." >&2
+  (
+    cd "$REPO_ROOT/codex-rs"
+    CARGO_TARGET_DIR="$BUILD_ROOT" cargo build -p codex-cli
+  )
+}
+
+wants_help_only() {
+  if [[ $# -eq 0 ]]; then
+    return 1
+  fi
+
+  case "$1" in
+    -h|--help|help|-V|--version)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+main() {
+  ensure_config
+
+  export CODEX_HOME="$SECURITY_HOME"
+  export PENTEST_LOCAL_BASE_URL="$BASE_URL"
+  export UXARION_ZAP_BASE_URL="$ZAP_BASE_URL"
+  export UXARION_UPDATE_REPO="$REPO_ROOT"
+  export UXARION_UPDATE_REMOTE="$UPDATE_REMOTE"
+  export UXARION_UPDATE_BRANCH="$UPDATE_BRANCH"
+  export UXARION_UPDATE_REPO_URL="$UPDATE_REPO_URL"
+
+  if [[ $# -gt 0 && "$1" == "update" ]]; then
+    run_update
+    exit 0
+  fi
+
+  ensure_binary
+
+  if [[ " $* " == *" --profile "* ]] || [[ " $* " == *" -p "* ]]; then
+    exec "$BIN" "$@"
+  fi
+
+  exec "$BIN" --profile security "$@"
+}
+
+main "$@"

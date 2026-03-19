@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export CODEX_SECURITY_HOME="${CODEX_SECURITY_HOME:-${UXARION_HOME:-$HOME/.uxarion}}"
+
+exec "${UXARION_LAUNCHER:-/root/.cargo/bin/codex-security}" "$@"

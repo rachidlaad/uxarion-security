@@ -1,0 +1,6 @@
+---
+source: tui/src/chatwidget/tests.rs
+assertion_line: 7060
+expression: header
+---
+› Ask Uxarion to assess a target
