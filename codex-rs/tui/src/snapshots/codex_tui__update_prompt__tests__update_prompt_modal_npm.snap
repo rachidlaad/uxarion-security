@@ -2,7 +2,7 @@
 source: tui/src/update_prompt.rs
 expression: terminal.backend()
 ---
-  ✨ Update available! 0.1.1 -> 9.9.9
+  ✨ Update available! 0.1.2 -> 9.9.9
 
   Update source: https://github.com/rachidlaad/uxarion-security
 
