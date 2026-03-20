@@ -41,7 +41,7 @@ function Get-ReleaseUrl {
         [string]$ResolvedVersion
     )
 
-    return "https://github.com/rachidlaad/uxarion-security/releases/download/v$ResolvedVersion/$AssetName"
+    return "https://github.com/rachidlaad/uxarion-downloads/releases/download/v$ResolvedVersion/$AssetName"
 }
 
 function Path-Contains {
@@ -70,7 +70,7 @@ function Resolve-Version {
         return $normalizedVersion
     }
 
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/rachidlaad/uxarion-security/releases/latest"
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/rachidlaad/uxarion-downloads/releases/latest"
     if (-not $release.tag_name) {
         Write-Error "Failed to resolve the latest Uxarion release version."
         exit 1

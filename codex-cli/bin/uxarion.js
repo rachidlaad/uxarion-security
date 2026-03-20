@@ -40,7 +40,7 @@ const RUNTIME_ARTIFACT_BY_TARGET = {
 
 const UXARION_DOWNLOAD_BASE_URL =
   process.env.UXARION_DOWNLOAD_BASE_URL ||
-  "https://github.com/rachidlaad/uxarion-security/releases/download";
+  "https://github.com/rachidlaad/uxarion-downloads/releases/download";
 
 const { platform, arch } = process;
 
