@@ -7,6 +7,8 @@ const UXARION_UPDATE_REPO_ENV_VAR: &str = "UXARION_UPDATE_REPO";
 const UXARION_UPDATE_REMOTE_ENV_VAR: &str = "UXARION_UPDATE_REMOTE";
 const UXARION_UPDATE_BRANCH_ENV_VAR: &str = "UXARION_UPDATE_BRANCH";
 const UXARION_UPDATE_REPO_URL_ENV_VAR: &str = "UXARION_UPDATE_REPO_URL";
+const UXARION_MANAGED_BY_NPM_ENV_VAR: &str = "UXARION_MANAGED_BY_NPM";
+const UXARION_MANAGED_BY_BUN_ENV_VAR: &str = "UXARION_MANAGED_BY_BUN";
 pub(crate) const DEFAULT_UXARION_UPDATE_REMOTE: &str = "uxarion";
 pub(crate) const DEFAULT_UXARION_UPDATE_BRANCH: &str = "main";
 pub(crate) const DEFAULT_UXARION_UPDATE_REPO_URL: &str =
@@ -29,10 +31,10 @@ impl UpdateAction {
     /// Returns the list of command-line arguments for invoking the update.
     pub fn command_args(self) -> (&'static str, &'static [&'static str]) {
         match self {
-            UpdateAction::UxarionGitCheckout
-            | UpdateAction::NpmGlobalLatest
-            | UpdateAction::BunGlobalLatest
-            | UpdateAction::BrewUpgrade => ("uxarion", &["update"]),
+            UpdateAction::UxarionGitCheckout => ("uxarion", &["update"]),
+            UpdateAction::NpmGlobalLatest => ("npm", &["install", "-g", "uxarion@latest"]),
+            UpdateAction::BunGlobalLatest => ("bun", &["install", "-g", "uxarion@latest"]),
+            UpdateAction::BrewUpgrade => ("brew", &["upgrade", "uxarion"]),
         }
     }
 
@@ -89,8 +91,10 @@ pub(crate) fn get_update_action() -> Option<UpdateAction> {
     detect_update_action(
         cfg!(target_os = "macos"),
         current_exe.as_path(),
-        std::env::var_os("npm_config_user_agent").is_some(),
-        std::env::var_os("BUN_INSTALL").is_some(),
+        std::env::var_os(UXARION_MANAGED_BY_NPM_ENV_VAR).is_some()
+            || std::env::var_os("npm_config_user_agent").is_some(),
+        std::env::var_os(UXARION_MANAGED_BY_BUN_ENV_VAR).is_some()
+            || std::env::var_os("BUN_INSTALL").is_some(),
         std::env::var_os(UXARION_UPDATE_REPO_ENV_VAR).is_some(),
     )
 }
@@ -212,5 +216,25 @@ mod tests {
     #[test]
     fn formats_git_revisions_for_display() {
         assert_eq!(display_revision("1234567890abcdef"), "1234567");
+    }
+
+    #[test]
+    fn update_commands_match_distribution_channels() {
+        assert_eq!(
+            UpdateAction::UxarionGitCheckout.command_str(),
+            "uxarion update"
+        );
+        assert_eq!(
+            UpdateAction::NpmGlobalLatest.command_str(),
+            "npm install -g uxarion@latest"
+        );
+        assert_eq!(
+            UpdateAction::BunGlobalLatest.command_str(),
+            "bun install -g uxarion@latest"
+        );
+        assert_eq!(
+            UpdateAction::BrewUpgrade.command_str(),
+            "brew upgrade uxarion"
+        );
     }
 }

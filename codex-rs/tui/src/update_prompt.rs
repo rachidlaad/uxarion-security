@@ -254,6 +254,14 @@ mod tests {
         )
     }
 
+    fn new_npm_prompt() -> UpdatePromptScreen {
+        UpdatePromptScreen::new(
+            FrameRequester::test_dummy(),
+            "9.9.9".into(),
+            UpdateAction::NpmGlobalLatest,
+        )
+    }
+
     #[test]
     fn update_prompt_snapshot() {
         let screen = new_prompt();
@@ -262,6 +270,16 @@ mod tests {
             .draw(|frame| frame.render_widget_ref(&screen, frame.area()))
             .expect("render update prompt");
         insta::assert_snapshot!("update_prompt_modal", terminal.backend());
+    }
+
+    #[test]
+    fn update_prompt_npm_snapshot() {
+        let screen = new_npm_prompt();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 12)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&screen, frame.area()))
+            .expect("render update prompt");
+        insta::assert_snapshot!("update_prompt_modal_npm", terminal.backend());
     }
 
     #[test]

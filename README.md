@@ -1,52 +1,72 @@
-<p align="center"><code>npm i -g uxarion</code><br />or <code>curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion-downloads/main/install.sh | sh</code></p>
-<p align="center"><strong>Uxarion</strong> is a terminal security assessment agent that runs locally on your computer.
+# Uxarion
+
 <p align="center">
   <img src="https://github.com/rachidlaad/uxarion-security/blob/main/.github/uxarion-splash.png" alt="Uxarion splash" width="80%" />
 </p>
-</br>
-Run <code>uxarion</code> after installation to open the interactive terminal UI.</p>
 
----
+<p align="center"><strong>Uxarion</strong> is an open-source terminal security assessment agent for local, operator-driven testing.</p>
+<p align="center"><code>npm install -g uxarion</code><br />or <code>curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion-security/main/install.sh | sh</code></p>
+
+## What Uxarion is
+
+Uxarion keeps the interactive Codex-style terminal loop, but focuses it on web and application security work:
+
+- inspect targets and keep context across turns
+- use a local model backend with your own API key
+- run security workflows from the terminal
+- capture evidence, findings, and reports
+- integrate with tools such as ZAP
+
+Uxarion is local-first. You bring the target scope, tooling, and API key; Uxarion helps you drive the workflow from one terminal UI.
+
+## Project home
+
+- Source, releases, issues, and discussions: [github.com/rachidlaad/uxarion-security](https://github.com/rachidlaad/uxarion-security)
+- Canonical install command: `npm install -g uxarion`
+- Direct GitHub install: `curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion-security/main/install.sh | sh`
+
+GitHub is the canonical public home for Uxarion today. The public website and docs site can be layered on top later without changing the install or update path.
 
 ## Quickstart
 
-### Installing and running Uxarion
+### Install
 
-Install globally with your preferred package manager:
-
-```shell
-# Install using npm
+```bash
 npm install -g uxarion
 ```
 
-```shell
-# Install directly from GitHub
-curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion-downloads/main/install.sh | sh
+or
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion-security/main/install.sh | sh
 ```
 
-Then simply run `uxarion` to get started.
+### Launch
 
-<details>
-<summary>You can also go to the <a href="https://github.com/rachidlaad/uxarion-downloads/releases/latest">latest GitHub Release</a> and download the runtime archive directly.</summary>
+```bash
+uxarion
+```
 
-Current published runtime artifact:
+### Add your API key
 
-- Linux
-  - x86_64: `uxarion-0.1.1-linux-x64.tar.xz`
+Run `uxarion`, then use `/apikey` inside the terminal UI to save a key for future runs. You can also export `OPENAI_API_KEY` if you prefer environment-based setup.
 
-The npm package also downloads this runtime automatically on first run.
+## Updates
 
-</details>
+Uxarion checks [GitHub Releases](https://github.com/rachidlaad/uxarion-security/releases) on startup. The version check comes from the `uxarion-security` repo, and the command shown in the UI depends on how Uxarion was installed:
 
-### Authentication
+- npm installs are prompted with `npm install -g uxarion@latest`
+- bun installs are prompted with `bun install -g uxarion@latest`
+- source checkout installs can keep using `uxarion update`
 
-Run `uxarion` and use `/apikey` inside the terminal UI to save an API key for future runs, or export `OPENAI_API_KEY` before launch if you prefer environment-based configuration.
+## Documentation
 
-## Docs
+- [Install and build guide](./docs/install.md)
+- [Contribution guide](./CONTRIBUTING.md)
+- [Security policy](./SECURITY.md)
+- [License](./LICENSE)
+- [Open source fund](./docs/open-source-fund.md)
 
-- [**GitHub Releases**](https://github.com/rachidlaad/uxarion-downloads/releases)
-- [**Contributing**](./docs/contributing.md)
-- [**Installing & building**](./docs/install.md)
-- [**Open source fund**](./docs/open-source-fund.md)
+## License
 
-This repository is licensed under the [Apache-2.0 License](LICENSE).
+Uxarion is licensed under the [Apache-2.0 License](./LICENSE).
