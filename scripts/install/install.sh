@@ -101,7 +101,7 @@ release_url_for_asset() {
   asset="$1"
   resolved_version="$2"
 
-  printf 'https://github.com/rachidlaad/uxarion-downloads/releases/download/v%s/%s\n' "$resolved_version" "$asset"
+  printf 'https://raw.githubusercontent.com/rachidlaad/uxarion-downloads/main/releases/v%s/%s\n' "$resolved_version" "$asset"
 }
 
 require_command() {
@@ -122,7 +122,7 @@ resolve_version() {
     return
   fi
 
-  release_json="$(download_text "https://api.github.com/repos/rachidlaad/uxarion-downloads/releases/latest")"
+  release_json="$(download_text "https://api.github.com/repos/rachidlaad/uxarion-security/releases/latest")"
   resolved="$(printf '%s\n' "$release_json" | sed -n 's/.*"tag_name":[[:space:]]*"v\{0,1\}\([^"]*\)".*/\1/p' | head -n 1)"
 
   if [ -z "$resolved" ]; then
