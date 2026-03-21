@@ -53,9 +53,17 @@ Typical ZAP flow:
 
 1. Start ZAP with the API enabled
 2. Launch `uxarion`
-3. Run `/zap status`
-4. If needed, run `/zap url http://host:port`
-5. Restart Uxarion before running new ZAP-backed scans
+3. Save the correct ZAP API address with `/zap url http://host:port`
+4. If your ZAP API key is required, save it with `/zap key <value>`
+5. Run `/zap status`
+6. Restart Uxarion before running new ZAP-backed scans
+
+Common addresses:
+
+- Same Linux or macOS machine: `http://127.0.0.1:8080`
+- Windows ZAP with Ubuntu/WSL Uxarion: use the Windows host IP instead of `127.0.0.1`, for example `http://172.17.160.1:8080`
+
+If ZAP has `Disable the API key` enabled, you do not need to set `api_key` in Uxarion.
 
 ## Apps (Connectors)
 

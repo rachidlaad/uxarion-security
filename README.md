@@ -19,13 +19,25 @@ Uxarion is local-first. You bring the target scope, tooling, and API key; Uxario
 
 Uxarion talks to ZAP through the API, not by scripting the desktop UI.
 
-Default setup:
+Simple setup:
 
-1. Start ZAP with the API enabled on `http://127.0.0.1:8080`
-2. Launch `uxarion`
-3. Run `/zap status` to verify connectivity
-4. If your ZAP API is on a different host or port, run `/zap url http://host:port`
-5. Restart Uxarion before relying on `zap_run` in a new session
+1. Open ZAP and go to `Options > API`.
+2. Make sure `Enabled` is checked.
+3. Choose the address Uxarion should use:
+   - If Uxarion and ZAP run on the same Linux or macOS machine, use `http://127.0.0.1:8080`
+   - If ZAP runs on Windows and Uxarion runs inside Ubuntu/WSL, use the Windows host IP instead, for example `http://172.17.160.1:8080`
+4. Launch `uxarion`.
+5. Save the ZAP URL from inside Uxarion:
+   - `/zap url http://127.0.0.1:8080`
+   - or `/zap url http://172.17.160.1:8080`
+6. If your ZAP API key is required, save it with `/zap key <value>`.
+7. Run `/zap status` to verify connectivity.
+8. Restart Uxarion before relying on `zap_run` in a new session.
+
+Notes:
+
+- If ZAP shows `Disable the API key` enabled, Uxarion does not need `/zap key`.
+- If `127.0.0.1:8080` fails but ZAP is running on Windows, switch to the Windows host IP with `/zap url http://host:port`.
 
 Useful commands:
 
