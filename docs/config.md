@@ -1,16 +1,10 @@
 # Configuration
 
-For basic configuration instructions, see [this documentation](https://developers.openai.com/codex/config-basic).
-
-For advanced configuration instructions, see [this documentation](https://developers.openai.com/codex/config-advanced).
-
-For a full configuration reference, see [this documentation](https://developers.openai.com/codex/config-reference).
+Uxarion reads configuration from `~/.uxarion/config.toml`.
 
 ## Connecting to MCP servers
 
-Uxarion can connect to MCP servers configured in `~/.uxarion/config.toml`. See the configuration reference for the latest MCP server options:
-
-- https://developers.openai.com/codex/config-reference
+Uxarion can connect to MCP servers configured in `~/.uxarion/config.toml`.
 
 ## Model providers
 
@@ -23,19 +17,30 @@ The equivalent config keys are:
 
 If you change providers from the UI, Uxarion saves the new default and applies it on the next session start.
 
+Default local provider endpoints:
+
+- `ollama`: `http://localhost:11434/v1`
+- `lmstudio`: `http://localhost:1234/v1`
+
+Typical local-provider flow:
+
+1. Start Ollama or LM Studio
+2. Launch `uxarion`
+3. Run `/provider ollama` or `/provider lmstudio`
+4. Restart Uxarion
+5. Run `/provider status` to verify the active backend
+
 ## Apps (Connectors)
 
-Use `$` in the composer to insert a ChatGPT connector; the popover lists accessible
+Use `$` in the composer to insert a connector; the popover lists accessible
 apps. The `/apps` command lists available and installed apps. Connected apps appear first
 and are labeled as connected; others are marked as can be installed.
 
 ## Notify
 
-Codex can run a notification hook when the agent finishes a turn. See the configuration reference for the latest notification settings:
+Uxarion can run a notification hook when the agent finishes a turn.
 
-- https://developers.openai.com/codex/config-reference
-
-When Codex knows which client started the turn, the legacy notify JSON payload also includes a top-level `client` field. The TUI reports `codex-tui`, and the app server reports the `clientInfo.name` value from `initialize`.
+When Uxarion knows which client started the turn, the legacy notify JSON payload also includes a top-level `client` field. The TUI reports `codex-tui`, and the app server reports the `clientInfo.name` value from `initialize`.
 
 ## JSON Schema
 
@@ -43,13 +48,13 @@ The generated JSON Schema for `config.toml` lives at `codex-rs/core/config.schem
 
 ## SQLite State DB
 
-Codex stores the SQLite-backed state DB under `sqlite_home` (config key) or the
+Uxarion stores the SQLite-backed state DB under `sqlite_home` (config key) or the
 `CODEX_SQLITE_HOME` environment variable. When unset, WorkspaceWrite sandbox
 sessions default to a temp directory; other modes default to `CODEX_HOME`.
 
 ## Notices
 
-Codex stores "do not show again" flags for some UI prompts under the `[notice]` table.
+Uxarion stores "do not show again" flags for some UI prompts under the `[notice]` table.
 
 ## Plan mode defaults
 
@@ -63,7 +68,7 @@ config value for "follow the global default in Plan mode".
 ## Realtime start instructions
 
 `experimental_realtime_start_instructions` lets you replace the built-in
-developer message Codex inserts when realtime becomes active. It only affects
+developer message Uxarion inserts when realtime becomes active. It only affects
 the realtime start message in prompt history and does not change websocket
 backend prompt settings or the realtime end/inactive message.
 

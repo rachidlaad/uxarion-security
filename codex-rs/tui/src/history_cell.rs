@@ -524,7 +524,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
         let update_instruction = if let Some(update_action) = self.update_action {
             line![
                 "Run ",
-                update_action.command_str().cyan(),
+                update_action.command_str().yellow(),
                 " to update Uxarion."
             ]
         } else {
@@ -533,8 +533,8 @@ impl HistoryCell for UpdateAvailableHistoryCell {
 
         let content = text![
             line![
-                padded_emoji("✨").bold().cyan(),
-                "Update available!".bold().cyan(),
+                padded_emoji("✨").bold().yellow(),
+                "Update available!".bold().yellow(),
                 " ",
                 format!("{current_version} -> {latest_version}").bold(),
             ],

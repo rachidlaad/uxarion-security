@@ -1,18 +1,14 @@
 # Uxarion
 
-<p align="center">
-  <img src="https://github.com/rachidlaad/uxarion-security/blob/main/.github/uxarion-splash.png" alt="Uxarion splash" width="80%" />
-</p>
-
 <p align="center"><strong>Uxarion</strong> is an open-source terminal security assessment agent for local, operator-driven testing.</p>
 <p align="center"><code>npm install -g uxarion</code><br />or <code>curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion-security/main/install.sh | sh</code></p>
 
 ## What Uxarion is
 
-Uxarion keeps the interactive Codex-style terminal loop, but focuses it on web and application security work:
+Uxarion keeps an interactive terminal agent loop, but focuses it on web and application security work:
 
 - inspect targets and keep context across turns
-- use a local model backend with your own API key
+- use either your own API key or a local model backend
 - run security workflows from the terminal
 - capture evidence, findings, and reports
 - integrate with tools such as ZAP
@@ -24,8 +20,6 @@ Uxarion is local-first. You bring the target scope, tooling, and API key; Uxario
 - Source, releases, issues, and discussions: [github.com/rachidlaad/uxarion-security](https://github.com/rachidlaad/uxarion-security)
 - Canonical install command: `npm install -g uxarion`
 - Direct GitHub install: `curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion-security/main/install.sh | sh`
-
-GitHub is the canonical public home for Uxarion today. The public website and docs site can be layered on top later without changing the install or update path.
 
 ## Quickstart
 
@@ -53,7 +47,17 @@ Run `uxarion`, then use `/apikey` inside the terminal UI to save a key for futur
 
 ### Optional: switch to a local model
 
-Uxarion keeps the API-backed provider as the default. If you want to switch future sessions to a local model backend, run `uxarion` and use `/provider`, or type `/provider ollama` or `/provider lmstudio` inside the terminal UI. Provider changes are saved for the next session.
+Uxarion keeps the API-backed provider as the default. To use a local provider instead:
+
+1. Start your local model server.
+   - Ollama should expose an OpenAI-compatible endpoint on `http://localhost:11434/v1`
+   - LM Studio should expose an OpenAI-compatible endpoint on `http://localhost:1234/v1`
+2. Launch `uxarion`
+3. Run `/provider ollama` or `/provider lmstudio`
+4. Restart Uxarion
+5. Run `/provider status` in the new session to confirm the active backend
+
+Provider changes are saved for future sessions. Uxarion does not start Ollama or LM Studio for you, and local providers do not use your `OPENAI_API_KEY`.
 
 ## Updates
 
@@ -66,10 +70,10 @@ Uxarion checks [GitHub Releases](https://github.com/rachidlaad/uxarion-security/
 ## Documentation
 
 - [Install and build guide](./docs/install.md)
+- [Configuration guide](./docs/config.md)
 - [Contribution guide](./CONTRIBUTING.md)
 - [Security policy](./SECURITY.md)
 - [License](./LICENSE)
-- [Open source fund](./docs/open-source-fund.md)
 
 ## License
 

@@ -192,8 +192,8 @@ impl WidgetRef for &UpdatePromptScreen {
 
         column.push("");
         column.push(Line::from(vec![
-            padded_emoji("  ✨").bold().cyan(),
-            "Update available!".bold(),
+            padded_emoji("  ✨").bold().yellow(),
+            "Update available!".bold().yellow(),
             " ".into(),
             format!(
                 "{current} -> {latest}",
