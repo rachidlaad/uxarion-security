@@ -41,7 +41,7 @@ function Get-ReleaseUrl {
         [string]$ResolvedVersion
     )
 
-    return "https://raw.githubusercontent.com/rachidlaad/uxarion-downloads/main/releases/v$ResolvedVersion/$AssetName"
+    return "https://raw.githubusercontent.com/rachidlaad/uxarion/main/releases/v$ResolvedVersion/$AssetName"
 }
 
 function Path-Contains {
