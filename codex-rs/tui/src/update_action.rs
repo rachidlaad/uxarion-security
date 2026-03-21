@@ -11,8 +11,7 @@ const UXARION_MANAGED_BY_NPM_ENV_VAR: &str = "UXARION_MANAGED_BY_NPM";
 const UXARION_MANAGED_BY_BUN_ENV_VAR: &str = "UXARION_MANAGED_BY_BUN";
 pub(crate) const DEFAULT_UXARION_UPDATE_REMOTE: &str = "uxarion";
 pub(crate) const DEFAULT_UXARION_UPDATE_BRANCH: &str = "main";
-pub(crate) const DEFAULT_UXARION_UPDATE_REPO_URL: &str =
-    "https://github.com/rachidlaad/uxarion-security";
+pub(crate) const DEFAULT_UXARION_UPDATE_REPO_URL: &str = "https://github.com/rachidlaad/uxarion";
 
 /// Update action the CLI should perform after the TUI exits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

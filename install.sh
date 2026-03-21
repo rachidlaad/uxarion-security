@@ -2,7 +2,7 @@
 
 set -eu
 
-URL="https://raw.githubusercontent.com/rachidlaad/uxarion-security/main/scripts/install/install.sh"
+URL="https://raw.githubusercontent.com/rachidlaad/uxarion/main/scripts/install/install.sh"
 
 if command -v curl >/dev/null 2>&1; then
   curl -fsSL "$URL" | sh -s -- "$@"

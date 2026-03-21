@@ -4,7 +4,7 @@ expression: terminal.backend()
 ---
   ✨ Update available! 0.1.5 -> 9.9.9
 
-  Update source: https://github.com/rachidlaad/uxarion-security
+  Update source: https://github.com/rachidlaad/uxarion
 
 › 1. Update now (runs `npm install -g uxarion@latest`)                          
   2. Skip

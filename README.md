@@ -1,7 +1,7 @@
 # Uxarion
 
 <p align="center"><strong>Uxarion</strong> is an open-source terminal security assessment agent for local, operator-driven testing.</p>
-<p align="center"><code>npm install -g uxarion</code><br />or <code>curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion-security/main/install.sh | sh</code></p>
+<p align="center"><code>npm install -g uxarion</code><br />or <code>curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion/main/install.sh | sh</code></p>
 
 ## What Uxarion is
 
@@ -17,9 +17,9 @@ Uxarion is local-first. You bring the target scope, tooling, and API key; Uxario
 
 ## Project home
 
-- Source, releases, issues, and discussions: [github.com/rachidlaad/uxarion-security](https://github.com/rachidlaad/uxarion-security)
+- Source, releases, issues, and discussions: [github.com/rachidlaad/uxarion](https://github.com/rachidlaad/uxarion)
 - Canonical install command: `npm install -g uxarion`
-- Direct GitHub install: `curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion-security/main/install.sh | sh`
+- Direct GitHub install: `curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion/main/install.sh | sh`
 
 ## Quickstart
 
@@ -32,7 +32,7 @@ npm install -g uxarion
 or
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion-security/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/rachidlaad/uxarion/main/install.sh | sh
 ```
 
 ### Launch
@@ -61,7 +61,7 @@ Provider changes are saved for future sessions. Uxarion does not start Ollama or
 
 ## Updates
 
-Uxarion checks [GitHub Releases](https://github.com/rachidlaad/uxarion-security/releases) on startup. The version check comes from the `uxarion-security` repo, and the command shown in the UI depends on how Uxarion was installed:
+Uxarion checks [GitHub Releases](https://github.com/rachidlaad/uxarion/releases) on startup. The version check comes from the `uxarion` repo, and the command shown in the UI depends on how Uxarion was installed:
 
 - npm installs are prompted with `npm install -g uxarion@latest`
 - bun installs are prompted with `bun install -g uxarion@latest`

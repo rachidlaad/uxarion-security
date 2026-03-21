@@ -9,7 +9,7 @@ BASE_URL="${PENTEST_LOCAL_BASE_URL:-https://api.openai.com/v1}"
 ZAP_BASE_URL="${UXARION_ZAP_BASE_URL:-http://172.17.160.1:8080}"
 UPDATE_REMOTE="${UXARION_UPDATE_REMOTE:-uxarion}"
 UPDATE_BRANCH="${UXARION_UPDATE_BRANCH:-main}"
-UPDATE_REPO_URL="${UXARION_UPDATE_REPO_URL:-https://github.com/rachidlaad/uxarion-security}"
+UPDATE_REPO_URL="${UXARION_UPDATE_REPO_URL:-https://github.com/rachidlaad/uxarion}"
 
 ensure_config() {
   mkdir -p "$SECURITY_HOME"

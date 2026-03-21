@@ -64,8 +64,7 @@ struct VersionInfo {
 }
 
 const VERSION_FILENAME: &str = "version.json";
-const LATEST_RELEASE_URL: &str =
-    "https://api.github.com/repos/rachidlaad/uxarion-security/releases/latest";
+const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/rachidlaad/uxarion/releases/latest";
 
 #[derive(Deserialize, Debug, Clone)]
 struct ReleaseInfo {
