@@ -6,8 +6,8 @@ expression: popup
   Select Provider
   Choose the default backend for future sessions. Restart after changing providers
 
-› 1. API (default) (current)  Use your saved API key with the configured
-                              Responses-compatible backend.
+› 1. API (default) (current)  Use your saved API key with the built-in API
+                              provider (OpenAI by default).
   2. Ollama (local)           Use a local Ollama server. Saved model defaults to
                               gpt-oss:20b.
   3. LM Studio (local)        Use a local LM Studio server. Saved model defaults

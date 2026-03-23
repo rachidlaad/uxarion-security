@@ -6260,13 +6260,13 @@ mod tests {
         let codex_home = tempdir()?;
 
         ConfigEditsBuilder::new(codex_home.path())
-            .with_edits(provider_selection_edits(None, "pentest-local", "gpt-5.4"))
+            .with_edits(provider_selection_edits(None, "openai", "gpt-5.4"))
             .apply()
             .await
             .expect("persist api provider selection");
 
         let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
-        assert!(config.contains("model_provider = \"pentest-local\""));
+        assert!(config.contains("model_provider = \"openai\""));
         assert!(config.contains("model = \"gpt-5.4\""));
         assert!(!config.contains("oss_provider"));
         assert!(!config.contains("model_reasoning_effort"));

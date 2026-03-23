@@ -6359,6 +6359,24 @@ async fn provider_command_inline_arg_dispatches_ollama_selection() {
 }
 
 #[tokio::test]
+async fn provider_command_inline_arg_dispatches_api_selection() {
+    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(None).await;
+
+    assert!(chat.handle_provider_inline_args("api"));
+
+    assert_matches!(
+        rx.try_recv(),
+        Ok(AppEvent::PersistProviderSelection {
+            provider_id,
+            model,
+            label,
+        }) if provider_id == "openai"
+            && model == "gpt-5.4"
+            && label == "API (default)"
+    );
+}
+
+#[tokio::test]
 async fn zap_command_inline_arg_dispatches_url_selection() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(None).await;
 

@@ -11,7 +11,7 @@ use codex_utils_oss::get_default_model_for_oss_provider;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 
-const API_PROVIDER_ID: &str = "pentest-local";
+const API_PROVIDER_ID: &str = "openai";
 const API_DEFAULT_MODEL: &str = "gpt-5.4";
 
 impl ChatWidget {
@@ -131,7 +131,9 @@ fn provider_description(provider_id: &str) -> String {
             "Use a local LM Studio server. Saved model defaults to {}.",
             default_model_for_provider(provider_id)
         ),
-        _ => "Use your saved API key with the configured Responses-compatible backend.".to_string(),
+        _ => {
+            "Use your saved API key with the built-in API provider (OpenAI by default).".to_string()
+        }
     }
 }
 
