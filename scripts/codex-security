@@ -17,13 +17,13 @@ ensure_config() {
   if [[ ! -f "$SECURITY_HOME/config.toml" ]]; then
     cat >"$SECURITY_HOME/config.toml" <<'EOF'
 model = "gpt-5"
-model_provider = "pentest-local"
+model_provider = "openai"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
 [profiles.security]
 model = "gpt-5"
-model_provider = "pentest-local"
+model_provider = "openai"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 EOF

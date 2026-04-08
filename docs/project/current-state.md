@@ -10,7 +10,8 @@ It currently focuses on:
 - API-backed sessions by default
 - optional local-model sessions through Ollama or LM Studio
 - ZAP-backed scanning through the ZAP API
-- local-first evidence capture and reporting groundwork
+- local-first evidence capture with `/findings`
+- skill-backed `/report` generation that reads saved session artifacts and writes canonical Markdown reports locally
 
 ## Canonical repo and release home
 

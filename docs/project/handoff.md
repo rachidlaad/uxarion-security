@@ -28,6 +28,7 @@ Short-term priorities:
 ## Where key work usually lands
 
 - provider behavior: `codex-rs/core` and `codex-rs/tui`
+- report generation: `codex-rs/core/src/security/mod.rs`, `codex-rs/core/src/tools/handlers/security.rs`, `codex-rs/tui/src/chatwidget/reporting.rs`, bundled system skill files under `codex-rs/skills/src/assets/samples/security-reporting/`
 - update prompts and checks: `codex-rs/tui/src/updates.rs`, `codex-rs/tui/src/update_action.rs`
 - npm/runtime distribution: `codex-cli/bin/uxarion.js`, `codex-cli/package.json`
 - public docs: `README.md`, `docs/config.md`, `docs/install.md`

@@ -1,0 +1,5 @@
+---
+source: tui/src/chatwidget/tests.rs
+expression: rendered
+---
+■ Reports are unavailable until this session has a thread id.

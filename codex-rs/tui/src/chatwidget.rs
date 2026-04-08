@@ -278,7 +278,6 @@ mod provider_selection;
 mod reporting;
 mod skills;
 mod zap_selection;
-use self::reporting::ReportScope;
 use self::skills::collect_tool_mentions;
 use self::skills::find_app_mentions;
 use self::skills::find_skill_mentions_with_tool_mentions;
@@ -4220,7 +4219,7 @@ impl ChatWidget {
                 self.show_security_findings();
             }
             SlashCommand::Report => {
-                self.run_report_command(ReportScope::All);
+                self.run_report_command(reporting::ReportCommandScope::All);
             }
             SlashCommand::Statusline => {
                 self.open_status_line_setup();
@@ -4496,9 +4495,85 @@ impl ChatWidget {
         }
     }
 
-    fn run_report_command(&mut self, scope: ReportScope<'_>) {
-        let prompt = reporting::report_prompt(scope);
-        self.submit_user_message(prompt.into());
+    fn run_report_command(&mut self, scope: reporting::ReportCommandScope) {
+        let Some(thread_id) = self.thread_id else {
+            self.add_error_message(
+                "Reports are unavailable until this session has a thread id.".to_string(),
+            );
+            return;
+        };
+
+        if self.bottom_pane.is_task_running() {
+            self.add_error_message(
+                "Wait for the current task to finish before generating a report.".to_string(),
+            );
+            return;
+        }
+
+        if self.is_review_mode {
+            self.add_error_message(
+                "Reports are unavailable while review mode is active.".to_string(),
+            );
+            return;
+        }
+
+        let resolved =
+            match reporting::resolve_report_request(&self.config.codex_home, thread_id, &scope) {
+                Ok(resolved) => resolved,
+                Err(message) => {
+                    self.add_error_message(message);
+                    return;
+                }
+            };
+        let prompt = reporting::build_report_request_prompt(&resolved, &scope);
+        let skill_path = reporting::security_reporting_skill_path(&self.config.codex_home);
+        let effective_mode = self.effective_collaboration_mode();
+        let collaboration_mode = if self.collaboration_modes_enabled() {
+            self.active_collaboration_mask
+                .as_ref()
+                .map(|_| effective_mode.clone())
+        } else {
+            None
+        };
+        let personality = self
+            .config
+            .personality
+            .filter(|_| self.config.features.enabled(Feature::Personality))
+            .filter(|_| self.current_model_supports_personality());
+        let service_tier = self.config.service_tier.map(Some);
+        let rendered_user_message = Self::rendered_user_message_event_from_parts(
+            prompt.clone(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        let items = vec![
+            UserInput::Text {
+                text: prompt,
+                text_elements: Vec::new(),
+            },
+            UserInput::Skill {
+                name: reporting::SECURITY_REPORTING_SKILL_NAME.to_string(),
+                path: skill_path,
+            },
+        ];
+        let op = Op::UserTurn {
+            items,
+            cwd: self.config.cwd.clone(),
+            approval_policy: self.config.permissions.approval_policy.value(),
+            sandbox_policy: self.config.permissions.sandbox_policy.get().clone(),
+            model: effective_mode.model().to_string(),
+            effort: effective_mode.reasoning_effort(),
+            summary: None,
+            service_tier,
+            final_output_json_schema: None,
+            collaboration_mode,
+            personality,
+        };
+
+        if self.submit_op(op) {
+            self.last_rendered_user_message_event = Some(rendered_user_message);
+        }
     }
 
     fn show_rename_prompt(&mut self) {
@@ -4768,25 +4843,40 @@ impl ChatWidget {
                 .iter()
                 .map(|skill| skill.name.to_ascii_lowercase())
                 .collect();
+        }
 
-            for binding in &mention_bindings {
-                let path = binding
-                    .path
-                    .strip_prefix("skill://")
-                    .unwrap_or(binding.path.as_str());
-                let path = Path::new(path);
-                if let Some(skill) = skills
-                    .iter()
-                    .find(|skill| skill.path_to_skills_md.as_path() == path)
-                    && selected_skill_paths.insert(skill.path_to_skills_md.clone())
-                {
-                    items.push(UserInput::Skill {
-                        name: skill.name.clone(),
-                        path: skill.path_to_skills_md.clone(),
-                    });
-                }
+        for binding in &mention_bindings {
+            let path = binding
+                .path
+                .strip_prefix("skill://")
+                .unwrap_or(binding.path.as_str());
+            let path = PathBuf::from(path);
+            let Some(name) = path.file_name() else {
+                continue;
+            };
+            if !name.to_string_lossy().eq_ignore_ascii_case("SKILL.md")
+                || !selected_skill_paths.insert(path.clone())
+            {
+                continue;
             }
 
+            let skill_name = self
+                .bottom_pane
+                .skills()
+                .and_then(|skills| {
+                    skills
+                        .iter()
+                        .find(|skill| skill.path_to_skills_md == path)
+                        .map(|skill| skill.name.clone())
+                })
+                .unwrap_or_else(|| binding.mention.clone());
+            items.push(UserInput::Skill {
+                name: skill_name,
+                path,
+            });
+        }
+
+        if let Some(skills) = self.bottom_pane.skills() {
             let skill_mentions = find_skill_mentions_with_tool_mentions(&mentions, skills);
             for skill in skill_mentions {
                 if bound_names.contains(skill.name.as_str())

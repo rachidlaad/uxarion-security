@@ -74,6 +74,7 @@ Public product behavior:
 
 - default provider: API
 - optional local providers: Ollama and LM Studio
+- security profile honors the configured provider instead of forcing the local Responses-compatible backend
 
 Important note:
 
@@ -98,6 +99,21 @@ Default expectation:
 
 - same-machine setups use `http://127.0.0.1:8080`
 - WSL + Windows ZAP setups may need the Windows host IP instead
+
+## Reporting model
+
+Uxarion reporting is now a hybrid:
+
+- persisted security session state remains the source of truth
+- `/findings` stays local and deterministic
+- `/report` runs as a normal model turn with the bundled `security-reporting` system skill
+- the low-level `report_write` tool remains the canonical local save path for Markdown artifacts
+
+Current intent:
+
+- the model can inspect saved findings, evidence files, and screenshots to draft a better report
+- report output is still written locally to the canonical session report path
+- the user-facing report flow is no longer the old app-side deterministic `/report` action
 
 ## Update model
 

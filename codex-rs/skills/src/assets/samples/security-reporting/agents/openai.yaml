@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Reporting"
+  short_description: "Draft grounded pentest reports from saved artifacts"
+  default_prompt: "Use $security-reporting to turn saved Uxarion findings and evidence into a grounded Markdown report."

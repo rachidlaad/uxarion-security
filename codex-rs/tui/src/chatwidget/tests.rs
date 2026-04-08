@@ -6187,9 +6187,33 @@ async fn slash_findings_requires_thread_id() {
 }
 
 #[tokio::test]
-async fn slash_report_with_finding_id_submits_user_turn() {
-    let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(None).await;
-    chat.thread_id = Some(ThreadId::new());
+async fn slash_report_with_finding_id_requests_skill_backed_report_turn() {
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(None).await;
+    let thread_id = ThreadId::new();
+    chat.thread_id = Some(thread_id);
+    let expected_skill_path =
+        super::reporting::security_reporting_skill_path(&chat.config.codex_home);
+    let session_dir = chat
+        .config
+        .codex_home
+        .join("security")
+        .join(thread_id.to_string());
+    std::fs::create_dir_all(session_dir.join("evidence")).expect("create evidence dir");
+    std::fs::write(
+        session_dir.join("findings.json"),
+        r#"[
+  {
+    "id": "finding-0001",
+    "target": "https://example.com",
+    "vulnerability": "Reflected XSS",
+    "severity": "high",
+    "confidence": "confirmed",
+    "status": "confirmed"
+  }
+]"#,
+    )
+    .expect("write findings");
+    std::fs::write(session_dir.join("state.json"), "{}").expect("write state");
 
     chat.dispatch_command_with_args(
         SlashCommand::Report,
@@ -6197,16 +6221,65 @@ async fn slash_report_with_finding_id_submits_user_turn() {
         Vec::new(),
     );
 
-    match next_submit_op(&mut op_rx) {
-        Op::UserTurn { input, .. } => {
-            let text = user_input_text(input);
+    let Op::UserTurn { items, .. } = next_submit_op(&mut op_rx) else {
+        panic!("expected report slash command to submit a user turn");
+    };
+    let submitted_items = items.clone();
+    assert_eq!(items.len(), 2);
+    match &items[0] {
+        UserInput::Text { text, .. } => {
+            assert!(
+                text.contains("$security-reporting"),
+                "expected report prompt to mention the reporting skill, got {text:?}"
+            );
             assert!(
                 text.contains("finding `finding-0001`"),
-                "expected report prompt to include finding id, got {text:?}"
+                "expected report prompt to preserve requested finding scope, got {text:?}"
+            );
+            assert!(
+                text.contains("report_write"),
+                "expected report prompt to direct the model to save via report_write, got {text:?}"
             );
         }
-        other => panic!("expected /report to submit a user turn, got {other:?}"),
+        other => panic!("expected text input first, got {other:?}"),
     }
+    match &items[1] {
+        UserInput::Skill { name, path } => {
+            assert_eq!(name, super::reporting::SECURITY_REPORTING_SKILL_NAME);
+            assert_eq!(path, &expected_skill_path);
+        }
+        other => panic!("expected reporting skill input, got {other:?}"),
+    }
+    assert_no_submit_op(&mut op_rx);
+    assert!(matches!(rx.try_recv(), Err(TryRecvError::Empty)));
+
+    complete_user_message_for_inputs(&mut chat, "user-1", submitted_items);
+
+    while let Ok(event) = rx.try_recv() {
+        if let AppEvent::InsertHistoryCell(cell) = event
+            && cell.as_any().downcast_ref::<UserHistoryCell>().is_some()
+        {
+            panic!("internal /report prompt should not render in history");
+        }
+    }
+}
+
+#[tokio::test]
+async fn slash_report_requires_persisted_security_artifacts() {
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(None).await;
+    chat.thread_id = Some(ThreadId::new());
+
+    chat.dispatch_command(SlashCommand::Report);
+
+    assert_no_submit_op(&mut op_rx);
+    let cells = drain_insert_history(&mut rx);
+    assert_eq!(cells.len(), 1, "expected one error message");
+    let rendered = lines_to_single_string(&cells[0]);
+    assert!(
+        rendered
+            .contains("No persisted security session artifacts were found for this thread yet."),
+        "expected missing-artifact guidance, got {rendered:?}"
+    );
 }
 
 #[tokio::test]
@@ -6222,6 +6295,19 @@ async fn slash_report_rejects_invalid_args() {
         rendered.contains("Usage: /report [all|finding <id>]"),
         "expected usage guidance, got {rendered:?}"
     );
+}
+
+#[tokio::test]
+async fn slash_report_requires_thread_id() {
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(None).await;
+
+    chat.dispatch_command(SlashCommand::Report);
+
+    assert_no_submit_op(&mut op_rx);
+    let cells = drain_insert_history(&mut rx);
+    assert_eq!(cells.len(), 1, "expected one error message");
+    let rendered = lines_to_single_string(&cells[0]);
+    assert_snapshot!("slash_report_requires_thread_id", rendered);
 }
 
 #[test]

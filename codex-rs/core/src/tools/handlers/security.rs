@@ -110,6 +110,8 @@ struct RecordFindingArgs {
 #[derive(Debug, Deserialize)]
 struct ReportWriteArgs {
     #[serde(default)]
+    content: Option<String>,
+    #[serde(default)]
     summary: Option<String>,
     #[serde(default)]
     include_evidence: bool,
@@ -478,15 +480,28 @@ impl ToolHandler for ReportWriteHandler {
         } = invocation;
         let arguments = payload_arguments(payload)?;
         let args: ReportWriteArgs = parse_arguments(&arguments)?;
-        let report_path = session
-            .services
-            .security_state
-            .write_report(
-                args.summary.as_deref(),
-                args.include_evidence,
-                args.finding_id.as_deref(),
-            )
-            .await?;
+        let report_path = if let Some(content) = args.content.as_deref() {
+            if args.summary.is_some() || args.include_evidence {
+                return Err(FunctionCallError::RespondToModel(
+                    "`content` cannot be combined with `summary` or `include_evidence`".to_string(),
+                ));
+            }
+            session
+                .services
+                .security_state
+                .save_report_markdown(content, args.finding_id.as_deref())
+                .await?
+        } else {
+            session
+                .services
+                .security_state
+                .write_report(
+                    args.summary.as_deref(),
+                    args.include_evidence,
+                    args.finding_id.as_deref(),
+                )
+                .await?
+        };
         let output = json!({
             "report_path": report_path,
         });

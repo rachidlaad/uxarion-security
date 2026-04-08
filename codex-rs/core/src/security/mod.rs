@@ -177,15 +177,6 @@ pub(crate) fn apply_runtime_overrides(config: &mut Config) {
         return;
     }
 
-    if config.model_provider_id != PENTEST_LOCAL_PROVIDER_ID
-        && let Some(provider) = crate::model_provider_info::built_in_model_providers()
-            .get(PENTEST_LOCAL_PROVIDER_ID)
-            .cloned()
-    {
-        config.model_provider_id = PENTEST_LOCAL_PROVIDER_ID.to_string();
-        config.model_provider = provider;
-    }
-
     if config.base_instructions.is_none() {
         config.base_instructions = Some(SECURITY_BASE_INSTRUCTIONS.to_string());
     }
@@ -608,10 +599,7 @@ impl SecuritySessionStateService {
 
             snapshot.findings = vec![selected];
             let report = render_report_markdown(&snapshot, summary, include_evidence);
-            let report_path = self.root_dir.join(format!(
-                "report-finding-{}.md",
-                sanitize_identifier(finding_id)
-            ));
+            let report_path = finding_report_path(&self.root_dir, finding_id);
             fs::write(&report_path, report).await.map_err(|err| {
                 FunctionCallError::RespondToModel(format!(
                     "failed to write finding report for `{finding_id}`: {err}"
@@ -625,6 +613,61 @@ impl SecuritySessionStateService {
             FunctionCallError::RespondToModel(format!("failed to write security report: {err}"))
         })?;
         Ok(self.report_path.clone())
+    }
+
+    pub(crate) async fn save_report_markdown(
+        &self,
+        content: &str,
+        finding_id: Option<&str>,
+    ) -> Result<PathBuf, FunctionCallError> {
+        if !self.enabled {
+            return Err(FunctionCallError::RespondToModel(
+                "security state is disabled for this session".to_string(),
+            ));
+        }
+
+        let content = content.trim();
+        if content.is_empty() {
+            return Err(FunctionCallError::RespondToModel(
+                "`content` must not be empty".to_string(),
+            ));
+        }
+
+        let report_path = if let Some(finding_id) = finding_id {
+            let finding_id = finding_id.trim();
+            if finding_id.is_empty() {
+                return Err(FunctionCallError::RespondToModel(
+                    "`finding_id` must not be empty".to_string(),
+                ));
+            }
+
+            let snapshot = self.snapshot().await;
+            if !snapshot
+                .findings
+                .iter()
+                .any(|finding| finding.id == finding_id)
+            {
+                return Err(FunctionCallError::RespondToModel(format!(
+                    "finding `{finding_id}` was not found"
+                )));
+            }
+
+            finding_report_path(&self.root_dir, finding_id)
+        } else {
+            self.report_path.clone()
+        };
+
+        let normalized = if content.ends_with('\n') {
+            content.to_string()
+        } else {
+            format!("{content}\n")
+        };
+
+        fs::write(&report_path, normalized).await.map_err(|err| {
+            FunctionCallError::RespondToModel(format!("failed to write security report: {err}"))
+        })?;
+
+        Ok(report_path)
     }
 
     pub(crate) async fn capture_expected_artifacts(
@@ -873,6 +916,13 @@ fn ensure_finding_ids(findings: &mut [FindingRecord]) {
     }
 }
 
+fn finding_report_path(root_dir: &Path, finding_id: &str) -> PathBuf {
+    root_dir.join(format!(
+        "report-finding-{}.md",
+        sanitize_identifier(finding_id)
+    ))
+}
+
 fn message_text(content: &[ContentItem]) -> String {
     content
         .iter()
@@ -920,6 +970,13 @@ fn apply_target_to_scope(scope: &mut SecurityScope, target: &str) -> Result<(), 
         ));
     }
 
+    if is_local_path_like(normalized) {
+        return Err(FunctionCallError::RespondToModel(
+            "scope_validate does not accept local file paths; read the provided artifacts directly instead"
+                .to_string(),
+        ));
+    }
+
     if normalized.starts_with("*.") {
         let domain = normalized
             .trim_start_matches("*.")
@@ -960,6 +1017,15 @@ fn parse_host_or_literal(input: &str) -> Result<String, FunctionCallError> {
         return parse_host(input);
     }
     Ok(input.trim().trim_matches('/').to_ascii_lowercase())
+}
+
+fn is_local_path_like(input: &str) -> bool {
+    let trimmed = input.trim().trim_matches(|ch| matches!(ch, '"' | '\''));
+    trimmed.starts_with('/')
+        || trimmed.starts_with("./")
+        || trimmed.starts_with("../")
+        || trimmed.starts_with("~/")
+        || trimmed.starts_with("file://")
 }
 
 pub(crate) fn scope_allows_host(scope: &SecurityScope, host: &str) -> bool {
@@ -1018,6 +1084,9 @@ pub(crate) fn command_is_allowed(
     }
 
     for target in scope_targets {
+        if is_local_path_like(target) {
+            continue;
+        }
         let host = parse_host_or_literal(target)?;
         if !scope_allows_host(current_scope, &host) {
             return Err(FunctionCallError::RespondToModel(format!(
@@ -1030,14 +1099,18 @@ pub(crate) fn command_is_allowed(
 }
 
 pub(crate) fn maybe_extract_host_from_token(token: &str) -> Option<String> {
-    if token.starts_with('-') {
+    let normalized = token.trim().trim_matches(|ch| matches!(ch, '"' | '\''));
+    if normalized.starts_with('-') || is_local_path_like(normalized) {
         return None;
     }
-    if let Ok(parsed) = Url::parse(token) {
+    if let Ok(parsed) = Url::parse(normalized) {
+        if parsed.scheme() == "file" {
+            return None;
+        }
         return parsed.host_str().map(str::to_ascii_lowercase);
     }
-    if HOST_REGEX.is_match(token) || IPV4_REGEX.is_match(token) {
-        return Some(token.trim_matches('/').to_ascii_lowercase());
+    if HOST_REGEX.is_match(normalized) || IPV4_REGEX.is_match(normalized) {
+        return Some(normalized.trim_matches('/').to_ascii_lowercase());
     }
     None
 }
@@ -1218,6 +1291,19 @@ mod tests {
         config.active_profile = None;
         config.model_provider_id = PENTEST_LOCAL_PROVIDER_ID.to_string();
         assert!(is_security_config(&config));
+    }
+
+    #[test]
+    fn security_runtime_overrides_preserve_explicit_provider() {
+        let mut config = test_config();
+        config.active_profile = Some(SECURITY_PROFILE_NAME.to_string());
+        let original_provider_id = config.model_provider_id.clone();
+        let original_provider = config.model_provider.clone();
+
+        apply_runtime_overrides(&mut config);
+
+        assert_eq!(config.model_provider_id, original_provider_id);
+        assert_eq!(config.model_provider, original_provider);
     }
 
     #[test]
@@ -1428,6 +1514,66 @@ mod tests {
         assert!(!contents.contains("[finding-0001]"));
     }
 
+    #[tokio::test]
+    async fn save_report_markdown_writes_custom_content_to_session_report() {
+        let tmp = tempdir().expect("tempdir");
+        let service = SecuritySessionStateService::new(
+            tmp.path(),
+            &ThreadId::default(),
+            true,
+            SecurityZapConfig::default(),
+        )
+        .await;
+
+        let report_path = service
+            .save_report_markdown("# Custom Report\n\nSaved from the reporting skill.", None)
+            .await
+            .expect("custom report");
+
+        assert_eq!(report_path, service.report_path);
+        let contents = std::fs::read_to_string(&report_path).expect("read custom report");
+        assert_eq!(
+            contents,
+            "# Custom Report\n\nSaved from the reporting skill.\n"
+        );
+    }
+
+    #[tokio::test]
+    async fn save_report_markdown_for_single_finding_uses_finding_artifact_path() {
+        let tmp = tempdir().expect("tempdir");
+        let service = SecuritySessionStateService::new(
+            tmp.path(),
+            &ThreadId::default(),
+            true,
+            SecurityZapConfig::default(),
+        )
+        .await;
+        service
+            .record_finding(FindingRecord {
+                id: String::new(),
+                target: "https://example.org".to_string(),
+                vulnerability: "SQL Injection".to_string(),
+                severity: "critical".to_string(),
+                confidence: "confirmed".to_string(),
+                evidence: vec!["ev-2".to_string()],
+                reproduction: None,
+                impact: None,
+                limitations: None,
+                status: "confirmed".to_string(),
+            })
+            .await
+            .expect("finding");
+
+        let finding_report = service
+            .save_report_markdown("## SQL Injection\n\nConfirmed issue.", Some("finding-0001"))
+            .await
+            .expect("finding report");
+
+        assert!(finding_report.ends_with("report-finding-finding-0001.md"));
+        let contents = std::fs::read_to_string(&finding_report).expect("read finding report");
+        assert_eq!(contents, "## SQL Injection\n\nConfirmed issue.\n");
+    }
+
     #[test]
     fn disallowed_command_patterns_are_detected() {
         assert_eq!(
@@ -1453,5 +1599,69 @@ mod tests {
         )
         .expect_err("should reject");
         assert!(matches!(err, FunctionCallError::RespondToModel(_)));
+    }
+
+    #[test]
+    fn local_paths_do_not_parse_as_hosts() {
+        assert_eq!(
+            maybe_extract_host_from_token("/tmp/report-structure.md"),
+            None
+        );
+        assert_eq!(maybe_extract_host_from_token("./findings.json"), None);
+        assert_eq!(
+            maybe_extract_host_from_token("file:///tmp/security/report.md"),
+            None
+        );
+    }
+
+    #[test]
+    fn command_validation_allows_local_artifact_reads() {
+        let scope = SecurityScope {
+            mode: "host_only".to_string(),
+            allowed_hosts: vec!["127.0.0.1".to_string()],
+            allowed_domains: Vec::new(),
+            notes: None,
+            derived_from: None,
+        };
+
+        command_is_allowed(
+            &[vec![
+                "sed".to_string(),
+                "-n".to_string(),
+                "1,20p".to_string(),
+                "/tmp/ux-report-clean-home/security/019d67cb/report-structure.md".to_string(),
+            ]],
+            &[
+                "/tmp/ux-report-clean-home/security/019d67cb/findings.json".to_string(),
+                "file:///tmp/ux-report-clean-home/security/019d67cb/report.md".to_string(),
+            ],
+            &scope,
+        )
+        .expect("local file reads should stay allowed");
+    }
+
+    #[tokio::test]
+    async fn validate_scope_rejects_local_file_targets() {
+        let tmp = tempdir().expect("tempdir");
+        let service = SecuritySessionStateService::new(
+            tmp.path(),
+            &ThreadId::default(),
+            true,
+            SecurityZapConfig::default(),
+        )
+        .await;
+
+        let err = service
+            .validate_scope(
+                &["/tmp/ux-report-clean-home/security/thread/findings.json".to_string()],
+                None,
+                false,
+            )
+            .await
+            .expect_err("local file paths should be rejected");
+
+        assert!(
+            matches!(err, FunctionCallError::RespondToModel(message) if message.contains("scope_validate does not accept local file paths"))
+        );
     }
 }

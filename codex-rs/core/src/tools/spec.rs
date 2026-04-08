@@ -1023,17 +1023,25 @@ fn create_record_finding_tool() -> ToolSpec {
 fn create_report_write_tool() -> ToolSpec {
     ToolSpec::Function(ResponsesApiTool {
         name: "report_write".to_string(),
-        description:
-            "Write a deterministic Markdown report from the current security findings and evidence."
-                .to_string(),
+        description: "Write a Markdown report for the current security session. When `content` is provided, the tool writes that Markdown directly to the canonical report path. Otherwise it renders the deterministic report from the saved findings and evidence."
+            .to_string(),
         strict: false,
         parameters: JsonSchema::Object {
             properties: BTreeMap::from([
                 (
+                    "content".to_string(),
+                    JsonSchema::String {
+                        description: Some(
+                            "Optional full Markdown content to save directly as the report artifact."
+                                .to_string(),
+                        ),
+                    },
+                ),
+                (
                     "summary".to_string(),
                     JsonSchema::String {
                         description: Some(
-                            "Optional summary paragraph to place at the top of the report."
+                            "Optional summary paragraph to place at the top of the deterministic report."
                                 .to_string(),
                         ),
                     },
@@ -1042,7 +1050,8 @@ fn create_report_write_tool() -> ToolSpec {
                     "include_evidence".to_string(),
                     JsonSchema::Boolean {
                         description: Some(
-                            "When true, append an evidence section to the report.".to_string(),
+                            "When true, append an evidence section to the deterministic report."
+                                .to_string(),
                         ),
                     },
                 ),

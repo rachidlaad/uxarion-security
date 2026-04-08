@@ -6,6 +6,7 @@ use crate::error::CodexErr;
 use crate::error::Result as CodexResult;
 use crate::features::Feature;
 use crate::file_watcher::WatchRegistration;
+use crate::function_tool::FunctionCallError;
 use crate::protocol::Event;
 use crate::protocol::Op;
 use crate::protocol::Submission;
@@ -142,6 +143,27 @@ impl CodexThread {
 
     pub async fn config_snapshot(&self) -> ThreadConfigSnapshot {
         self.codex.thread_config_snapshot().await
+    }
+
+    pub async fn write_security_report(
+        &self,
+        include_evidence: bool,
+        finding_id: Option<&str>,
+    ) -> CodexResult<PathBuf> {
+        self.codex
+            .session
+            .services
+            .security_state
+            .write_report(None, include_evidence, finding_id)
+            .await
+            .map_err(|err| match err {
+                FunctionCallError::RespondToModel(message) => CodexErr::InvalidRequest(message),
+                FunctionCallError::Fatal(message) => CodexErr::Fatal(message),
+                FunctionCallError::MissingLocalShellCallId => CodexErr::Fatal(
+                    "unexpected local shell call id error while writing a security report"
+                        .to_string(),
+                ),
+            })
     }
 
     pub fn enabled(&self, feature: Feature) -> bool {
