@@ -114,6 +114,18 @@ Current intent:
 - the model can inspect saved findings, evidence files, and screenshots to draft a better report
 - report output is still written locally to the canonical session report path
 - the user-facing report flow is no longer the old app-side deterministic `/report` action
+- report generation is limited to the security session artifacts: `findings.json`, `state.json`, `evidence/`, skill references, and the existing session `report.md`
+- reports must only be written through `report_write` into the thread's security session directory
+
+## Security scope model
+
+Security scope is now intentionally stricter for exact URLs:
+
+- if the user provides an exact URL, the active assessment is bound to that exact scheme, host, port, and path
+- the model should not infer a different route, repo, or local server when the exact target is unavailable
+- persisted evidence, findings, and reports all live under the thread's security session directory for one canonical audit trail
+- report generation is limited to the security session artifacts: `findings.json`, `state.json`, `evidence/`, skill references, and the existing session `report.md`
+- reports must only be written through `report_write` into the thread's security session directory
 
 ## Update model
 

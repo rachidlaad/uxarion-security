@@ -6240,6 +6240,22 @@ async fn slash_report_with_finding_id_requests_skill_backed_report_turn() {
                 text.contains("report_write"),
                 "expected report prompt to direct the model to save via report_write, got {text:?}"
             );
+            assert!(
+                text.contains("Read only these local artifacts during report generation"),
+                "expected report prompt to restrict local reads, got {text:?}"
+            );
+            assert!(
+                text.contains("Do not search the filesystem or read any other local paths"),
+                "expected report prompt to block arbitrary local reads, got {text:?}"
+            );
+            assert!(
+                text.contains("Never write an ad hoc report outside `target_report_path`"),
+                "expected report prompt to require canonical report writes, got {text:?}"
+            );
+            assert!(
+                text.contains("allowed_local_paths"),
+                "expected report prompt to require allowed_local_paths for local reads, got {text:?}"
+            );
         }
         other => panic!("expected text input first, got {other:?}"),
     }

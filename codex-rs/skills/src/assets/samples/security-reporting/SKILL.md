@@ -19,14 +19,15 @@ Use this skill when the user asks for:
 1. Treat the request as a reporting step, not a new testing step.
 2. Read only the relevant saved artifacts from the session directory provided in the user request.
 3. Start with `findings.json` and `state.json`.
-4. Inspect referenced evidence files with security-mode-allowed local file-inspection tools such as `grep`, `sed`, or `awk` when needed.
+4. Inspect referenced evidence files with security-mode-allowed local file-inspection tools such as `grep`, `sed`, or `awk` when needed, and set `allowed_local_paths` to only the provided artifact paths or directories the command needs.
 5. If evidence includes screenshots or image files, inspect them with `view_image`.
 6. Load `references/report-structure.md`.
 7. Also load one style reference:
    - `references/pentest-report-style.md` for general pentest/client reporting
    - `references/bug-bounty-report-style.md` for bug bounty style reports
-8. Save the final Markdown with `report_write` using the `content` field.
-9. After writing the file, tell the user the exact `report_path`.
+8. Read only `findings.json`, `state.json`, `evidence/`, the skill reference files, and the existing session `report.md`. Do not search the filesystem or read any other local paths.
+9. Save the final Markdown with `report_write` using the `content` field.
+10. After writing the file, tell the user the exact `report_path`.
 
 ## Workflow
 
@@ -55,9 +56,14 @@ Use this skill when the user asks for:
 - Keep reproduction steps concrete and evidence-backed.
 - Keep authorization/scope wording explicit when relevant.
 - If no findings exist, write a truthful minimal report rather than inventing issues.
-- In security mode, prefer direct reads from the provided absolute paths with `sed`, `grep`, or `awk`.
+- In security mode, prefer direct reads from the provided absolute paths with `sed`, `grep`, or `awk`, and set `allowed_local_paths` to the matching provided artifact paths or directories for each command.
+- During report generation, local reads are restricted to `findings.json`, `state.json`, `evidence/`, the skill reference files, and the existing session `report.md`.
+- Do not search the filesystem or read arbitrary home-directory or workspace paths during report generation.
+- All evidence, findings, and reports for this turn must stay under the thread's security session folder.
 - Do not use relative paths for report artifacts. Use the provided absolute paths exactly.
 - Do not use `ls`, `echo`, `printf`, nested shells, or `scope_validate` for local report artifacts; the provided file paths are already the allowed inputs for this reporting step.
+- Reports must only be written through `report_write` into the security session directory. Do not write ad hoc reports anywhere else.
+- Do not create, edit, or delete any local file outside the security session artifact area while generating a report.
 - If you need to read multiple files, run one or more plain `sed`, `grep`, or `awk` commands against those absolute paths directly instead of adding shell formatting helpers.
 
 ## Good command shapes

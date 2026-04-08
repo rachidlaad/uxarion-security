@@ -23,6 +23,7 @@ Short-term priorities:
 - make install and update flows reliable
 - improve pentest workflow quality
 - strengthen evidence and reporting
+- harden exact-target guardrails so security turns do not wander into unrelated repos or ad hoc report paths
 - keep provider and ZAP setup understandable
 
 ## Where key work usually lands

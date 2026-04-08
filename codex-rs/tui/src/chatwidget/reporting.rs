@@ -33,6 +33,7 @@ pub(super) struct ResolvedReportRequest {
     pub findings_path: PathBuf,
     pub state_path: PathBuf,
     pub evidence_dir: PathBuf,
+    pub existing_report_path: PathBuf,
     pub report_structure_path: PathBuf,
     pub pentest_style_path: PathBuf,
     pub bug_bounty_style_path: PathBuf,
@@ -140,6 +141,7 @@ pub(super) fn resolve_report_request(
     }
 
     let evidence_dir = session_dir.join("evidence");
+    let existing_report_path = session_dir.join("report.md");
     let report_path = match scope {
         ReportCommandScope::All => session_dir.join("report.md"),
         ReportCommandScope::Finding(id) => session_dir.join(format!("report-finding-{id}.md")),
@@ -180,6 +182,7 @@ pub(super) fn resolve_report_request(
         findings_path,
         state_path,
         evidence_dir,
+        existing_report_path,
         report_structure_path,
         pentest_style_path,
         bug_bounty_style_path,
@@ -209,23 +212,28 @@ pub(super) fn build_report_request_prompt(
     format!(
         "Use $security-reporting to write a Markdown security report from this Uxarion session's saved artifacts.\n\
 Work only from persisted artifacts for this /report request; do not run new network tests or expand scope.\n\
-For local file inspection in security mode, use direct reads with `sed`, `grep`, or `awk` on the provided absolute paths. Do not use relative paths, `ls`, `echo`, `printf`, or `scope_validate` for these local report artifacts.\n\
+Read only these local artifacts during report generation: `findings.json`, `state.json`, `evidence/`, the provided skill reference files, and the existing session `report.md`. Do not search the filesystem or read any other local paths.\n\
+For local file inspection in security mode, use direct reads with `sed`, `grep`, or `awk` on the provided absolute paths, and set `allowed_local_paths` to only the file or directory paths from this list that the command needs. Do not use relative paths, `ls`, `echo`, `printf`, or `scope_validate` for these local report artifacts.\n\
+Do not create, edit, or delete any local file outside the security session artifact area for this report.\n\
 \n\
 - session_dir: {}\n\
 - findings_path: {}\n\
 - state_path: {}\n\
 - evidence_dir: {}\n\
+- existing_report_path: {}\n\
 - report_structure_path: {}\n\
 - pentest_style_path: {}\n\
 - bug_bounty_style_path: {}\n\
 - target_report_path: {}\n\
+- allowed_local_paths: findings_path, state_path, evidence_dir, existing_report_path, report_structure_path, pentest_style_path, bug_bounty_style_path, target_report_path\n\
 - {}\n\
 \n\
-Inspect only the artifacts you need, then {} After writing the file, tell me the exact `report_path`.",
+Inspect only the listed artifacts you need, then {} Never write an ad hoc report outside `target_report_path`. After writing the file, tell me the exact `report_path`.",
         resolved.session_dir.display(),
         resolved.findings_path.display(),
         resolved.state_path.display(),
         resolved.evidence_dir.display(),
+        resolved.existing_report_path.display(),
         resolved.report_structure_path.display(),
         resolved.pentest_style_path.display(),
         resolved.bug_bounty_style_path.display(),

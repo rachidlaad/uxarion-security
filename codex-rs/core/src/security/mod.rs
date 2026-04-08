@@ -88,6 +88,11 @@ static DISALLOWED_COMMAND_PATTERNS: &[&str] = &[
     "slowloris",
 ];
 
+static LOCAL_FILESYSTEM_EXPLORATION_BINARIES: &[&str] = &[
+    "awk", "cat", "find", "grep", "head", "jq", "ls", "pwd", "readlink", "realpath", "rg", "sed",
+    "stat", "tail", "tee", "wc",
+];
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(crate) struct SecurityScope {
     pub mode: String,
@@ -364,13 +369,21 @@ impl SecuritySessionStateService {
         }
         let host = parse_host(url)?;
         let state = self.state.lock().await;
-        if scope_allows_host(&state.scope, &host) {
-            Ok(())
-        } else {
-            Err(FunctionCallError::RespondToModel(format!(
+        if !scope_allows_host(&state.scope, &host) {
+            return Err(FunctionCallError::RespondToModel(format!(
                 "target `{host}` is outside the current security scope; update scope explicitly before testing it"
-            )))
+            )));
         }
+
+        let exact_targets = exact_url_targets(&state.targets);
+        if !exact_targets.is_empty() && !exact_targets.iter().any(|target| target.matches_url(url))
+        {
+            return Err(FunctionCallError::RespondToModel(format!(
+                "target `{url}` is outside the current exact security scope; stay on the user-provided URL/host/port/path"
+            )));
+        }
+
+        Ok(())
     }
 
     pub(crate) async fn ensure_targets_in_scope(
@@ -1002,14 +1015,9 @@ fn parse_host(input: &str) -> Result<String, FunctionCallError> {
     let parsed = Url::parse(input).map_err(|err| {
         FunctionCallError::RespondToModel(format!("invalid URL `{input}`: {err}"))
     })?;
-    parsed
-        .host_str()
-        .map(str::to_ascii_lowercase)
-        .ok_or_else(|| {
-            FunctionCallError::RespondToModel(format!(
-                "URL `{input}` does not include a valid host"
-            ))
-        })
+    url_host_with_port(&parsed).ok_or_else(|| {
+        FunctionCallError::RespondToModel(format!("URL `{input}` does not include a valid host"))
+    })
 }
 
 fn parse_host_or_literal(input: &str) -> Result<String, FunctionCallError> {
@@ -1034,15 +1042,18 @@ pub(crate) fn scope_allows_host(scope: &SecurityScope, host: &str) -> bool {
         return true;
     }
 
+    let domain_host = host_without_port(&normalized);
     scope
         .allowed_domains
         .iter()
-        .any(|domain| normalized == *domain || normalized.ends_with(&format!(".{domain}")))
+        .any(|domain| domain_host == *domain || domain_host.ends_with(&format!(".{domain}")))
 }
 
 pub(crate) fn command_is_allowed(
     command_words: &[Vec<String>],
     scope_targets: &[String],
+    allowed_local_paths: &[String],
+    current_targets: &[String],
     current_scope: &SecurityScope,
 ) -> Result<(), FunctionCallError> {
     if command_words.is_empty() {
@@ -1051,6 +1062,7 @@ pub(crate) fn command_is_allowed(
         ));
     }
 
+    let exact_targets = exact_url_targets(current_targets);
     for command in command_words {
         let Some(binary) = command.first() else {
             continue;
@@ -1072,7 +1084,21 @@ pub(crate) fn command_is_allowed(
                     .to_string(),
             ));
         }
+        let mut saw_allowed_local_path = false;
         for token in command {
+            if !exact_targets.is_empty()
+                && let Ok(parsed) =
+                    Url::parse(token.trim().trim_matches(|ch| matches!(ch, '"' | '\'')))
+                && matches!(parsed.scheme(), "http" | "https")
+                && !exact_targets
+                    .iter()
+                    .any(|target| target.matches_parsed_url(&parsed))
+            {
+                return Err(FunctionCallError::RespondToModel(format!(
+                    "command target `{}` is outside the current exact security scope",
+                    token.trim().trim_matches(|ch| matches!(ch, '"' | '\''))
+                )));
+            }
             if let Some(host) = maybe_extract_host_from_token(token)
                 && !scope_allows_host(current_scope, &host)
             {
@@ -1080,6 +1106,22 @@ pub(crate) fn command_is_allowed(
                     "command target `{host}` is outside the current security scope"
                 )));
             }
+            if let Some(local_path) = normalize_local_path_token(token) {
+                if !local_path_is_allowed(&local_path, allowed_local_paths) {
+                    return Err(FunctionCallError::RespondToModel(format!(
+                        "local path `{local_path}` is outside the allowed security artifact paths for this command"
+                    )));
+                }
+                saw_allowed_local_path = true;
+            }
+        }
+        if LOCAL_FILESYSTEM_EXPLORATION_BINARIES.contains(&binary.as_str())
+            && !allowed_local_paths.is_empty()
+            && !saw_allowed_local_path
+        {
+            return Err(FunctionCallError::RespondToModel(format!(
+                "binary `{binary}` must stay on the explicitly allowed security artifact paths for this command"
+            )));
         }
     }
 
@@ -1107,12 +1149,102 @@ pub(crate) fn maybe_extract_host_from_token(token: &str) -> Option<String> {
         if parsed.scheme() == "file" {
             return None;
         }
-        return parsed.host_str().map(str::to_ascii_lowercase);
+        return url_host_with_port(&parsed);
     }
     if HOST_REGEX.is_match(normalized) || IPV4_REGEX.is_match(normalized) {
         return Some(normalized.trim_matches('/').to_ascii_lowercase());
     }
     None
+}
+
+fn normalize_local_path_token(token: &str) -> Option<String> {
+    let normalized = token.trim().trim_matches(|ch| matches!(ch, '"' | '\''));
+    if let Some(path) = normalized.strip_prefix("file://") {
+        return Some(path.to_string());
+    }
+    if normalized.starts_with('/') {
+        return Some(normalized.to_string());
+    }
+    None
+}
+
+fn local_path_is_allowed(path: &str, allowed_local_paths: &[String]) -> bool {
+    let candidate = Path::new(path);
+    allowed_local_paths.iter().any(|allowed| {
+        let allowed_path = Path::new(allowed);
+        candidate == allowed_path || candidate.starts_with(allowed_path)
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ExactUrlTarget {
+    scheme: String,
+    host: String,
+    port: Option<u16>,
+    path: String,
+}
+
+impl ExactUrlTarget {
+    fn matches_url(&self, candidate: &str) -> bool {
+        Url::parse(candidate)
+            .ok()
+            .is_some_and(|parsed| self.matches_parsed_url(&parsed))
+    }
+
+    fn matches_parsed_url(&self, candidate: &Url) -> bool {
+        matches!(candidate.scheme(), "http" | "https")
+            && candidate.scheme().eq_ignore_ascii_case(&self.scheme)
+            && candidate
+                .host_str()
+                .is_some_and(|host| host.eq_ignore_ascii_case(&self.host))
+            && candidate.port() == self.port
+            && normalize_url_path(candidate.path()) == self.path
+    }
+}
+
+fn exact_url_targets(targets: &[String]) -> Vec<ExactUrlTarget> {
+    targets
+        .iter()
+        .filter_map(|target| parse_exact_url_target(target))
+        .collect()
+}
+
+fn parse_exact_url_target(input: &str) -> Option<ExactUrlTarget> {
+    let parsed = Url::parse(input).ok()?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return None;
+    }
+    let host = parsed.host_str()?.to_ascii_lowercase();
+    Some(ExactUrlTarget {
+        scheme: parsed.scheme().to_ascii_lowercase(),
+        host,
+        port: parsed.port(),
+        path: normalize_url_path(parsed.path()),
+    })
+}
+
+fn normalize_url_path(path: &str) -> String {
+    if path.is_empty() {
+        "/".to_string()
+    } else {
+        path.to_string()
+    }
+}
+
+fn host_without_port(host: &str) -> &str {
+    if host.matches(':').count() == 1 {
+        host.split(':').next().unwrap_or(host)
+    } else {
+        host
+    }
+}
+
+fn url_host_with_port(url: &Url) -> Option<String> {
+    let host = url.host_str()?.to_ascii_lowercase();
+    Some(match url.port() {
+        Some(port) => format!("{host}:{port}"),
+        None => host,
+    })
 }
 
 pub(crate) fn command_contains_disallowed_pattern(cmd: &str) -> Option<&'static str> {
@@ -1595,6 +1727,8 @@ mod tests {
         let err = command_is_allowed(
             &[vec!["curl".to_string(), "https://evil.test".to_string()]],
             &[],
+            &[],
+            &[],
             &scope,
         )
         .expect_err("should reject");
@@ -1631,13 +1765,121 @@ mod tests {
                 "1,20p".to_string(),
                 "/tmp/ux-report-clean-home/security/019d67cb/report-structure.md".to_string(),
             ]],
+            &[],
             &[
                 "/tmp/ux-report-clean-home/security/019d67cb/findings.json".to_string(),
-                "file:///tmp/ux-report-clean-home/security/019d67cb/report.md".to_string(),
+                "/tmp/ux-report-clean-home/security/019d67cb/report-structure.md".to_string(),
+                "/tmp/ux-report-clean-home/security/019d67cb/evidence".to_string(),
+                "/tmp/ux-report-clean-home/security/019d67cb/report.md".to_string(),
             ],
+            &[],
             &scope,
         )
         .expect("local file reads should stay allowed");
+    }
+
+    #[test]
+    fn command_validation_rejects_local_paths_outside_allowlist() {
+        let scope = SecurityScope {
+            mode: "host_only".to_string(),
+            allowed_hosts: vec!["127.0.0.1".to_string()],
+            allowed_domains: Vec::new(),
+            notes: None,
+            derived_from: None,
+        };
+
+        let err = command_is_allowed(
+            &[vec![
+                "sed".to_string(),
+                "-n".to_string(),
+                "1,20p".to_string(),
+                "/root/secret.txt".to_string(),
+            ]],
+            &[],
+            &["/tmp/ux-report-clean-home/security/019d67cb".to_string()],
+            &[],
+            &scope,
+        )
+        .expect_err("out-of-allowlist local reads should be rejected");
+
+        assert!(
+            matches!(err, FunctionCallError::RespondToModel(message) if message.contains("allowed security artifact paths"))
+        );
+    }
+
+    #[tokio::test]
+    async fn exact_url_scope_rejects_different_path_on_same_host() {
+        let tmp = tempdir().expect("tempdir");
+        let service = SecuritySessionStateService::new(
+            tmp.path(),
+            &ThreadId::default(),
+            true,
+            SecurityZapConfig::default(),
+        )
+        .await;
+
+        service
+            .validate_scope(&["http://127.0.0.1:8876/login".to_string()], None, false)
+            .await
+            .expect("scope");
+
+        let err = service
+            .ensure_url_in_scope("http://127.0.0.1:8876/auth/login")
+            .await
+            .expect_err("route drift should be rejected");
+
+        assert!(
+            matches!(err, FunctionCallError::RespondToModel(message) if message.contains("exact security scope"))
+        );
+    }
+
+    #[tokio::test]
+    async fn exact_url_scope_allows_query_on_same_url() {
+        let tmp = tempdir().expect("tempdir");
+        let service = SecuritySessionStateService::new(
+            tmp.path(),
+            &ThreadId::default(),
+            true,
+            SecurityZapConfig::default(),
+        )
+        .await;
+
+        service
+            .validate_scope(&["http://127.0.0.1:8876/login".to_string()], None, false)
+            .await
+            .expect("scope");
+
+        service
+            .ensure_url_in_scope("http://127.0.0.1:8876/login?user=analyst")
+            .await
+            .expect("same path with query should remain in scope");
+    }
+
+    #[test]
+    fn command_validation_rejects_exact_url_drift() {
+        let scope = SecurityScope {
+            mode: "host_only".to_string(),
+            allowed_hosts: vec!["127.0.0.1:8876".to_string()],
+            allowed_domains: Vec::new(),
+            notes: None,
+            derived_from: None,
+        };
+
+        let err = command_is_allowed(
+            &[vec![
+                "curl".to_string(),
+                "http://127.0.0.1:8876/auth/login".to_string(),
+            ]],
+            &[],
+            &[],
+            &["http://127.0.0.1:8876/login".to_string()],
+            &scope,
+        )
+        .expect_err("exact URL drift should be rejected");
+
+        assert!(
+            matches!(err, FunctionCallError::RespondToModel(message) if message.contains("exact security scope"))
+        );
     }
 
     #[tokio::test]

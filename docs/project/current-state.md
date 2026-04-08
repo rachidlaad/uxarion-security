@@ -7,6 +7,7 @@ Uxarion is an open-source terminal security assessment agent for local, operator
 It currently focuses on:
 
 - scoped web and application security workflows
+- exact URL/host/port/path binding when the user scopes a turn to a concrete URL
 - API-backed sessions by default
 - optional local-model sessions through Ollama or LM Studio
 - ZAP-backed scanning through the ZAP API
@@ -42,6 +43,7 @@ Other platforms may exist in source or packaging scaffolding, but the reliable p
 ## Important current behaviors
 
 - API provider is the default provider.
+- Security mode binds exact scoped URLs to the provided host, port, and path instead of inferring alternate routes.
 - `/provider` supports API, Ollama, and LM Studio.
 - ZAP is configurable through `/zap`.
 - npm installs download the native runtime from the `uxarion` repo release path.

@@ -2,6 +2,7 @@ Summarize the completed security work for the next turn.
 
 Preserve:
 - Current scope and any user-approved scope changes.
+- Any exact URL, host, port, and path binding the user gave for the assessment.
 - Active targets, URLs, endpoints, and auth state.
 - Commands that mattered, especially scanner invocations and request replays.
 - Whether HTTP(S) checks used `http_inspect`, `zap_status`, `zap_run`, or required `security_exec`, and why.
@@ -11,5 +12,5 @@ Preserve:
 
 Avoid:
 - Coding-agent language.
-- Irrelevant workspace or file-edit details unless they are part of the assessment evidence.
+- Irrelevant workspace or file-edit details unless they are part of the assessment evidence recorded under the security session directory.
 - Long raw command output when a concise summary plus artifact path is enough.

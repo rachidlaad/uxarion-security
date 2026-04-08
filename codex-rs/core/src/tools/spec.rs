@@ -673,6 +673,16 @@ fn create_security_exec_tool() -> ToolSpec {
             },
         ),
         (
+            "allowed_local_paths".to_string(),
+            JsonSchema::Array {
+                items: Box::new(JsonSchema::String { description: None }),
+                description: Some(
+                    "Optional absolute file or directory paths this command may read locally. Use this for report-generation artifact reads only."
+                        .to_string(),
+                ),
+            },
+        ),
+        (
             "risk_level".to_string(),
             JsonSchema::String {
                 description: Some(

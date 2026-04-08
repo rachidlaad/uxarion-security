@@ -45,6 +45,8 @@ struct SecurityExecArgs {
     #[serde(default)]
     scope_targets: Vec<String>,
     #[serde(default)]
+    allowed_local_paths: Vec<String>,
+    #[serde(default)]
     risk_level: Option<String>,
     #[serde(default)]
     expected_artifacts: Vec<String>,
@@ -220,7 +222,13 @@ impl ToolHandler for SecurityExecHandler {
             )
         })?;
         let snapshot = session.services.security_state.snapshot().await;
-        command_is_allowed(&parsed_words, &args.scope_targets, &snapshot.scope)?;
+        command_is_allowed(
+            &parsed_words,
+            &args.scope_targets,
+            &args.allowed_local_paths,
+            &snapshot.targets,
+            &snapshot.scope,
+        )?;
         session
             .services
             .security_state
