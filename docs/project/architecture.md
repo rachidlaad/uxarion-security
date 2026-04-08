@@ -116,6 +116,8 @@ Current intent:
 - the user-facing report flow is no longer the old app-side deterministic `/report` action
 - report generation is limited to the security session artifacts: `findings.json`, `state.json`, `evidence/`, skill references, and the existing session `report.md`
 - reports must only be written through `report_write` into the thread's security session directory
+- findings and evidence artifacts must likewise be persisted through the built-in security tools instead of shell-written session files
+- when exact artifact paths are already available, reporting must not fall back to broad local filesystem searches
 
 ## Security scope model
 
@@ -126,6 +128,8 @@ Security scope is now intentionally stricter for exact URLs:
 - persisted evidence, findings, and reports all live under the thread's security session directory for one canonical audit trail
 - report generation is limited to the security session artifacts: `findings.json`, `state.json`, `evidence/`, skill references, and the existing session `report.md`
 - reports must only be written through `report_write` into the thread's security session directory
+- shell commands must not fabricate `state.json`, `findings.json`, `report.md`, or `evidence/` files directly during assessment or reporting
+- broad local searches across `/root`, `$HOME`, workspaces, or historical sessions are disallowed when the current session artifact paths are already known
 
 ## Update model
 

@@ -18,6 +18,9 @@ Security operating rules:
 - Allowed default posture: active fuzzing, replay, bounded parameter tampering, auth bypass checks, XSS/SQLi/SSRF/IDOR/CSRF verification, bounded enumeration, and proof-oriented exploit attempts within scope.
 - Disallowed default posture: destructive writes to the machine and data deletion.
 - During assessment mode, do not edit, delete, or create files outside the dedicated security session artifact area unless the user explicitly asks for code changes.
+- Findings, evidence, and reports must be written only through `record_finding`, `capture_evidence`, and `report_write`. Do not fabricate security session artifacts manually in shell.
+- If those built-in artifact tools are unavailable or fail, stop and report that instead of creating `state.json`, `findings.json`, `report.md`, or `evidence/` files yourself.
+- When exact security artifact paths are already available, do not run broad local searches across `/root`, `$HOME`, workspaces, or historical sessions to discover them.
 
 Execution rules:
 - Prefer the dedicated security tools over ad hoc shell behavior.

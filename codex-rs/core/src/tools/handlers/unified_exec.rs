@@ -4,6 +4,8 @@ use crate::is_safe_command::is_known_safe_command;
 use crate::protocol::EventMsg;
 use crate::protocol::TerminalInteractionEvent;
 use crate::sandboxing::SandboxPermissions;
+use crate::security::generic_exec_command_security_violation;
+use crate::security::is_security_config;
 use crate::shell::Shell;
 use crate::shell::get_shell_by_model_provided_path;
 use crate::skills::maybe_emit_implicit_skill_invocation;
@@ -142,6 +144,15 @@ impl ToolHandler for UnifiedExecHandler {
                 let cwd = resolve_workdir_base_path(&arguments, context.turn.cwd.as_path())?;
                 let args: ExecCommandArgs =
                     parse_arguments_with_base_path(&arguments, cwd.as_path())?;
+                let config = session.get_config().await;
+                if is_security_config(config.as_ref())
+                    && let Some(message) = generic_exec_command_security_violation(
+                        &args.cmd,
+                        &session.services.security_state.artifact_paths(),
+                    )
+                {
+                    return Err(FunctionCallError::RespondToModel(message));
+                }
                 maybe_emit_implicit_skill_invocation(
                     session.as_ref(),
                     turn.as_ref(),

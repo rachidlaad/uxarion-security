@@ -228,6 +228,7 @@ impl ToolHandler for SecurityExecHandler {
             &args.allowed_local_paths,
             &snapshot.targets,
             &snapshot.scope,
+            &session.services.security_state.artifact_paths(),
         )?;
         session
             .services

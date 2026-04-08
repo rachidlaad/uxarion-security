@@ -93,6 +93,10 @@ static LOCAL_FILESYSTEM_EXPLORATION_BINARIES: &[&str] = &[
     "stat", "tail", "tee", "wc",
 ];
 
+static LOCAL_ARTIFACT_READ_ONLY_BINARIES: &[&str] = &[
+    "awk", "grep", "head", "jq", "readlink", "realpath", "sed", "stat", "tail", "wc",
+];
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(crate) struct SecurityScope {
     pub mode: String,
@@ -207,6 +211,15 @@ pub(crate) struct SecuritySessionStateService {
     state: Mutex<SecuritySessionState>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SecurityArtifactPaths {
+    pub root_dir: PathBuf,
+    pub evidence_dir: PathBuf,
+    pub state_path: PathBuf,
+    pub findings_path: PathBuf,
+    pub report_path: PathBuf,
+}
+
 impl SecuritySessionStateService {
     pub(crate) async fn new(
         codex_home: &Path,
@@ -268,6 +281,16 @@ impl SecuritySessionStateService {
         }))
         .unwrap_or_else(|_| "{}".to_string());
         Some(body)
+    }
+
+    pub(crate) fn artifact_paths(&self) -> SecurityArtifactPaths {
+        SecurityArtifactPaths {
+            root_dir: self.root_dir.clone(),
+            evidence_dir: self.evidence_dir.clone(),
+            state_path: self.state_path.clone(),
+            findings_path: self.findings_path.clone(),
+            report_path: self.report_path.clone(),
+        }
     }
 
     pub(crate) fn render_tool_inventory_fragment(&self) -> Option<String> {
@@ -1055,6 +1078,7 @@ pub(crate) fn command_is_allowed(
     allowed_local_paths: &[String],
     current_targets: &[String],
     current_scope: &SecurityScope,
+    artifact_paths: &SecurityArtifactPaths,
 ) -> Result<(), FunctionCallError> {
     if command_words.is_empty() {
         return Err(FunctionCallError::RespondToModel(
@@ -1085,6 +1109,7 @@ pub(crate) fn command_is_allowed(
             ));
         }
         let mut saw_allowed_local_path = false;
+        let mut touched_security_artifact_path = false;
         for token in command {
             if !exact_targets.is_empty()
                 && let Ok(parsed) =
@@ -1113,7 +1138,17 @@ pub(crate) fn command_is_allowed(
                     )));
                 }
                 saw_allowed_local_path = true;
+                if local_path_references_security_artifacts(&local_path, artifact_paths) {
+                    touched_security_artifact_path = true;
+                }
             }
+        }
+        if touched_security_artifact_path
+            && !LOCAL_ARTIFACT_READ_ONLY_BINARIES.contains(&binary.as_str())
+        {
+            return Err(FunctionCallError::RespondToModel(
+                "security session artifacts must be written only through `capture_evidence`, `record_finding`, and `report_write`; do not fabricate them with shell commands".to_string(),
+            ));
         }
         if LOCAL_FILESYSTEM_EXPLORATION_BINARIES.contains(&binary.as_str())
             && !allowed_local_paths.is_empty()
@@ -1121,6 +1156,13 @@ pub(crate) fn command_is_allowed(
         {
             return Err(FunctionCallError::RespondToModel(format!(
                 "binary `{binary}` must stay on the explicitly allowed security artifact paths for this command"
+            )));
+        }
+        if !allowed_local_paths.is_empty()
+            && !LOCAL_ARTIFACT_READ_ONLY_BINARIES.contains(&binary.as_str())
+        {
+            return Err(FunctionCallError::RespondToModel(format!(
+                "binary `{binary}` is not allowed for report or artifact inspection; use direct read-only tools on the provided paths only"
             )));
         }
     }
@@ -1174,6 +1216,116 @@ fn local_path_is_allowed(path: &str, allowed_local_paths: &[String]) -> bool {
         let allowed_path = Path::new(allowed);
         candidate == allowed_path || candidate.starts_with(allowed_path)
     })
+}
+
+fn local_path_references_security_artifacts(
+    path: &str,
+    artifact_paths: &SecurityArtifactPaths,
+) -> bool {
+    let candidate = Path::new(path);
+    candidate == artifact_paths.state_path
+        || candidate == artifact_paths.findings_path
+        || candidate == artifact_paths.report_path
+        || candidate == artifact_paths.evidence_dir
+        || candidate.starts_with(&artifact_paths.evidence_dir)
+        || candidate.starts_with(&artifact_paths.root_dir)
+}
+
+pub(crate) fn generic_exec_command_security_violation(
+    cmd: &str,
+    artifact_paths: &SecurityArtifactPaths,
+) -> Option<String> {
+    let lowered = cmd.to_ascii_lowercase();
+    let root_dir = artifact_paths
+        .root_dir
+        .to_string_lossy()
+        .to_ascii_lowercase();
+    let evidence_dir = artifact_paths
+        .evidence_dir
+        .to_string_lossy()
+        .to_ascii_lowercase();
+    let state_path = artifact_paths
+        .state_path
+        .to_string_lossy()
+        .to_ascii_lowercase();
+    let findings_path = artifact_paths
+        .findings_path
+        .to_string_lossy()
+        .to_ascii_lowercase();
+    let report_path = artifact_paths
+        .report_path
+        .to_string_lossy()
+        .to_ascii_lowercase();
+    let security_root = artifact_paths
+        .root_dir
+        .parent()
+        .map(|path| path.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+
+    let touches_exact_artifact_paths = [
+        root_dir.as_str(),
+        evidence_dir.as_str(),
+        state_path.as_str(),
+        findings_path.as_str(),
+        report_path.as_str(),
+    ]
+    .iter()
+    .any(|needle| !needle.is_empty() && lowered.contains(needle));
+    let mentions_artifact_names = ["findings.json", "state.json", "report.md", "evidence"]
+        .iter()
+        .any(|needle| lowered.contains(needle));
+    let broad_search_binary = lowered.starts_with("find ")
+        || lowered.starts_with("rg ")
+        || lowered.starts_with("ls ")
+        || lowered.contains(" grep -r")
+        || lowered.starts_with("grep -r")
+        || lowered.contains(" grep -r ")
+        || lowered.contains(" grep -r/")
+        || lowered.contains(" grep -r\t")
+        || lowered.contains(" grep -r\n")
+        || lowered.contains(" grep -R")
+        || lowered.starts_with("grep -R");
+    let broad_search_root = lowered.contains("/root")
+        || lowered.contains("$home")
+        || lowered.contains("~/.uxarion")
+        || (!security_root.is_empty() && lowered.contains(&security_root));
+    if mentions_artifact_names && broad_search_binary && broad_search_root {
+        return Some(
+            "exact security artifact paths are already available; do not run broad local searches across `/root`, `$HOME`, workspaces, or historical sessions".to_string(),
+        );
+    }
+
+    let mutating_pattern = lowered.contains(" tee ")
+        || lowered.starts_with("tee ")
+        || lowered.contains(" printf ")
+        || lowered.starts_with("printf ")
+        || lowered.contains(" echo ")
+        || lowered.starts_with("echo ")
+        || lowered.contains(" mkdir ")
+        || lowered.starts_with("mkdir ")
+        || lowered.contains(" touch ")
+        || lowered.starts_with("touch ")
+        || lowered.contains(" cp ")
+        || lowered.starts_with("cp ")
+        || lowered.contains(" mv ")
+        || lowered.starts_with("mv ")
+        || lowered.contains(" install ")
+        || lowered.starts_with("install ")
+        || lowered.contains(" python ")
+        || lowered.starts_with("python ")
+        || lowered.contains(" python3 ")
+        || lowered.starts_with("python3 ")
+        || lowered.contains(" sed -i")
+        || lowered.contains(" perl -0pi")
+        || lowered.contains(">")
+        || lowered.contains(">>");
+    if touches_exact_artifact_paths && mutating_pattern {
+        return Some(
+            "security session artifacts must be written only through `capture_evidence`, `record_finding`, and `report_write`; do not fabricate them with shell commands".to_string(),
+        );
+    }
+
+    None
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1715,6 +1867,17 @@ mod tests {
         assert_eq!(command_contains_disallowed_pattern("curl https://x"), None);
     }
 
+    fn test_security_artifact_paths() -> SecurityArtifactPaths {
+        let root_dir = PathBuf::from("/tmp/ux-report-clean-home/security/019d67cb");
+        SecurityArtifactPaths {
+            evidence_dir: root_dir.join("evidence"),
+            state_path: root_dir.join("state.json"),
+            findings_path: root_dir.join("findings.json"),
+            report_path: root_dir.join("report.md"),
+            root_dir,
+        }
+    }
+
     #[test]
     fn command_validation_blocks_out_of_scope_tokens() {
         let scope = SecurityScope {
@@ -1730,6 +1893,7 @@ mod tests {
             &[],
             &[],
             &scope,
+            &test_security_artifact_paths(),
         )
         .expect_err("should reject");
         assert!(matches!(err, FunctionCallError::RespondToModel(_)));
@@ -1774,6 +1938,7 @@ mod tests {
             ],
             &[],
             &scope,
+            &test_security_artifact_paths(),
         )
         .expect("local file reads should stay allowed");
     }
@@ -1799,12 +1964,66 @@ mod tests {
             &["/tmp/ux-report-clean-home/security/019d67cb".to_string()],
             &[],
             &scope,
+            &test_security_artifact_paths(),
         )
         .expect_err("out-of-allowlist local reads should be rejected");
 
         assert!(
             matches!(err, FunctionCallError::RespondToModel(message) if message.contains("allowed security artifact paths"))
         );
+    }
+
+    #[test]
+    fn command_validation_rejects_manual_artifact_fabrication() {
+        let scope = SecurityScope {
+            mode: "host_only".to_string(),
+            allowed_hosts: vec!["127.0.0.1".to_string()],
+            allowed_domains: Vec::new(),
+            notes: None,
+            derived_from: None,
+        };
+
+        let err = command_is_allowed(
+            &[vec![
+                "python3".to_string(),
+                "/tmp/write-report.py".to_string(),
+                "/tmp/ux-report-clean-home/security/019d67cb/report.md".to_string(),
+            ]],
+            &[],
+            &["/tmp/ux-report-clean-home/security/019d67cb/report.md".to_string()],
+            &[],
+            &scope,
+            &test_security_artifact_paths(),
+        )
+        .expect_err("manual artifact fabrication should be rejected");
+
+        assert!(
+            matches!(err, FunctionCallError::RespondToModel(message) if message.contains("written only through `capture_evidence`, `record_finding`, and `report_write`"))
+        );
+    }
+
+    #[test]
+    fn generic_exec_guard_rejects_broad_artifact_searches() {
+        let err = generic_exec_command_security_violation(
+            "rg -n --hidden --glob 'findings.json' --glob 'report.md' --glob 'state.json' 'findings|report|state' /root",
+            &test_security_artifact_paths(),
+        )
+        .expect("broad artifact search should be rejected");
+
+        assert!(err.contains("do not run broad local searches"));
+    }
+
+    #[test]
+    fn generic_exec_guard_rejects_manual_security_artifact_writes() {
+        let err = generic_exec_command_security_violation(
+            "printf '{}' > /tmp/ux-report-clean-home/security/019d67cb/findings.json",
+            &test_security_artifact_paths(),
+        )
+        .expect("manual artifact write should be rejected");
+
+        assert!(err.contains(
+            "written only through `capture_evidence`, `record_finding`, and `report_write`"
+        ));
     }
 
     #[tokio::test]
@@ -1874,6 +2093,7 @@ mod tests {
             &[],
             &["http://127.0.0.1:8876/login".to_string()],
             &scope,
+            &test_security_artifact_paths(),
         )
         .expect_err("exact URL drift should be rejected");
 

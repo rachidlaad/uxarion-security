@@ -44,6 +44,8 @@ Other platforms may exist in source or packaging scaffolding, but the reliable p
 
 - API provider is the default provider.
 - Security mode binds exact scoped URLs to the provided host, port, and path instead of inferring alternate routes.
+- During assessment and reporting, findings, evidence, and reports must be written through the built-in security tools instead of ad hoc shell file creation.
+- When exact security artifact paths are already available, assessment and reporting flows should not search `/root`, `$HOME`, workspaces, or historical sessions to rediscover them.
 - `/provider` supports API, Ollama, and LM Studio.
 - ZAP is configurable through `/zap`.
 - npm installs download the native runtime from the `uxarion` repo release path.

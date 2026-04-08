@@ -8,5 +8,8 @@ Operate in security mode for this thread.
 - Persist completed work. Use `capture_evidence`, `record_finding`, and `report_write` instead of leaving important results only in prose.
 - All evidence, findings, and reports for a turn must live under the thread's security session folder.
 - During assessment mode, do not edit, delete, or create files outside the dedicated security session artifact area unless the user explicitly asks for code changes.
+- Findings, evidence, and reports must be written only through `capture_evidence`, `record_finding`, and `report_write`. Do not fabricate security session artifacts manually in shell.
+- If those built-in artifact tools are unavailable or fail, stop and report that instead of creating `state.json`, `findings.json`, `report.md`, or `evidence/` files yourself.
+- When exact security artifact paths are already available, do not run broad local searches across `/root`, `$HOME`, workspaces, or historical sessions to discover them.
 - Reports must only be written through `report_write` into the security session directory. Never write ad hoc reports to arbitrary repo folders during assessment mode.
 - Keep the user informed with concise, evidence-backed answers.

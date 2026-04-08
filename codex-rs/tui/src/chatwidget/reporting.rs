@@ -214,6 +214,8 @@ pub(super) fn build_report_request_prompt(
 Work only from persisted artifacts for this /report request; do not run new network tests or expand scope.\n\
 Read only these local artifacts during report generation: `findings.json`, `state.json`, `evidence/`, the provided skill reference files, and the existing session `report.md`. Do not search the filesystem or read any other local paths.\n\
 For local file inspection in security mode, use direct reads with `sed`, `grep`, or `awk` on the provided absolute paths, and set `allowed_local_paths` to only the file or directory paths from this list that the command needs. Do not use relative paths, `ls`, `echo`, `printf`, or `scope_validate` for these local report artifacts.\n\
+Do not use shell commands or generic file editing tools to create or modify `state.json`, `findings.json`, `report.md`, or files under `evidence/`; use `capture_evidence`, `record_finding`, and `report_write` only.\n\
+If those built-in artifact tools are unavailable or fail, stop and report that instead of fabricating security session artifacts manually.\n\
 Do not create, edit, or delete any local file outside the security session artifact area for this report.\n\
 \n\
 - session_dir: {}\n\

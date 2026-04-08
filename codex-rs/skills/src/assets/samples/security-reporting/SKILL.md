@@ -62,6 +62,9 @@ Use this skill when the user asks for:
 - All evidence, findings, and reports for this turn must stay under the thread's security session folder.
 - Do not use relative paths for report artifacts. Use the provided absolute paths exactly.
 - Do not use `ls`, `echo`, `printf`, nested shells, or `scope_validate` for local report artifacts; the provided file paths are already the allowed inputs for this reporting step.
+- Findings, evidence, and reports must be written only through `record_finding`, `capture_evidence`, and `report_write`. Do not fabricate security session artifacts manually in shell.
+- If those built-in artifact tools are unavailable or fail, stop and report that instead of creating `state.json`, `findings.json`, `report.md`, or `evidence/` files yourself.
+- When exact security artifact paths are already available, do not run broad local searches across `/root`, `$HOME`, workspaces, or historical sessions to discover them.
 - Reports must only be written through `report_write` into the security session directory. Do not write ad hoc reports anywhere else.
 - Do not create, edit, or delete any local file outside the security session artifact area while generating a report.
 - If you need to read multiple files, run one or more plain `sed`, `grep`, or `awk` commands against those absolute paths directly instead of adding shell formatting helpers.
