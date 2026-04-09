@@ -13,6 +13,7 @@ It currently focuses on:
 - ZAP-backed scanning through the ZAP API
 - local-first evidence capture with `/findings`
 - skill-backed `/report` generation that reads saved session artifacts and writes canonical Markdown reports locally
+- optional anonymous Uxarion telemetry through a configured HTTPS endpoint
 
 ## Canonical repo and release home
 
@@ -46,6 +47,7 @@ Other platforms may exist in source or packaging scaffolding, but the reliable p
 - Security mode binds exact scoped URLs to the provided host, port, and path instead of inferring alternate routes.
 - During assessment and reporting, findings, evidence, and reports must be written through the built-in security tools instead of ad hoc shell file creation.
 - When exact security artifact paths are already available, assessment and reporting flows should not search `/root`, `$HOME`, workspaces, or historical sessions to rediscover them.
+- Optional Uxarion telemetry can emit anonymous `app_opened`, `session_started`, and `report_generated` events when `[uxarion_telemetry]` is configured.
 - `/provider` supports API, Ollama, and LM Studio.
 - ZAP is configurable through `/zap`.
 - npm installs download the native runtime from the `uxarion` repo release path.

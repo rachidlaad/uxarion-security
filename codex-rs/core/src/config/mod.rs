@@ -537,6 +537,9 @@ pub struct Config {
     /// Voluntarily left as Optional because the default value might depend on the client.
     pub analytics_enabled: Option<bool>,
 
+    /// Anonymous Uxarion product telemetry settings resolved for this runtime.
+    pub uxarion_telemetry: crate::config::types::UxarionTelemetryConfig,
+
     /// When `false`, disables feedback collection across Codex product surfaces.
     /// Defaults to `true`.
     pub feedback_enabled: bool,
@@ -1311,6 +1314,10 @@ pub struct ConfigToml {
     /// When `false`, disables analytics across Codex product surfaces in this machine.
     /// Defaults to `true`.
     pub analytics: Option<crate::config::types::AnalyticsConfigToml>,
+
+    /// Anonymous Uxarion product telemetry configuration.
+    #[serde(default)]
+    pub uxarion_telemetry: Option<crate::config::types::UxarionTelemetryConfigToml>,
 
     /// When `false`, disables feedback collection across Codex product surfaces.
     /// Defaults to `true`.
@@ -2497,6 +2504,13 @@ impl Config {
                 .as_ref()
                 .and_then(|a| a.enabled)
                 .or(cfg.analytics.as_ref().and_then(|a| a.enabled)),
+            uxarion_telemetry: cfg.uxarion_telemetry.unwrap_or_default().resolved(
+                config_profile
+                    .analytics
+                    .as_ref()
+                    .and_then(|a| a.enabled)
+                    .or(cfg.analytics.as_ref().and_then(|a| a.enabled)),
+            ),
             feedback_enabled: cfg
                 .feedback
                 .as_ref()

@@ -33,6 +33,7 @@ use codex_core::path_utils;
 use codex_core::read_session_meta_line;
 use codex_core::state_db::get_state_db;
 use codex_core::terminal::Multiplexer;
+use codex_core::uxarion_telemetry::UxarionTelemetryClient;
 use codex_core::windows_sandbox::WindowsSandboxLevelExt;
 use codex_protocol::ThreadId;
 use codex_protocol::config_types::AltScreenMode;
@@ -516,6 +517,13 @@ pub async fn run_main(mut cli: Cli, arg0_paths: Arg0DispatchPaths) -> std::io::R
         .with(otel_logger_layer)
         .with(otel_tracing_layer)
         .try_init();
+
+    tracing::debug!(
+        enabled = config.uxarion_telemetry.enabled,
+        has_endpoint = config.uxarion_telemetry.endpoint.is_some(),
+        "tracking uxarion app open"
+    );
+    UxarionTelemetryClient::new(std::sync::Arc::new(config.clone())).track_app_opened();
 
     run_ratatui_app(
         cli,

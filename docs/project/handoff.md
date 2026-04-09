@@ -25,11 +25,13 @@ Short-term priorities:
 - strengthen evidence and reporting
 - harden exact-target guardrails so security turns do not wander into unrelated repos or ad hoc report paths
 - enforce built-in-tool-only writes for evidence, findings, and reports, and block broad local artifact searches once the current session paths are known
+- add privacy-safe anonymous telemetry for growth tracking without collecting prompts, targets, or findings content
 - keep provider and ZAP setup understandable
 
 ## Where key work usually lands
 
 - provider behavior: `codex-rs/core` and `codex-rs/tui`
+- anonymous telemetry: `codex-rs/core/src/uxarion_telemetry.rs`, `codex-rs/core/src/codex.rs`, `codex-rs/tui/src/app.rs`, `docs/config.md`
 - report generation: `codex-rs/core/src/security/mod.rs`, `codex-rs/core/src/tools/handlers/security.rs`, `codex-rs/tui/src/chatwidget/reporting.rs`, bundled system skill files under `codex-rs/skills/src/assets/samples/security-reporting/`
 - update prompts and checks: `codex-rs/tui/src/updates.rs`, `codex-rs/tui/src/update_action.rs`
 - npm/runtime distribution: `codex-cli/bin/uxarion.js`, `codex-cli/package.json`

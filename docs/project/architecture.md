@@ -157,7 +157,43 @@ Common local files include:
 - config
 - sessions
 - cached update metadata
+- optional anonymous telemetry install id under `CODEX_HOME/telemetry/install_id`
 
 Tracked repo files must not contain secrets.
 
 Private operator or local-agent notes should live in ignored local files such as `.codex/`.
+
+## Telemetry model
+
+Uxarion telemetry is a separate anonymous product-metrics path and does not reuse the inherited Codex analytics endpoint.
+
+Current design:
+
+- top-level config under `[uxarion_telemetry]`
+- global opt-out still honors `[analytics].enabled = false`
+- anonymous local install id persisted under `CODEX_HOME/telemetry/install_id`
+- client emits small HTTPS JSON event batches to the configured endpoint
+- intended backend shape is `Uxarion client -> Supabase Edge Function -> Supabase Postgres`
+
+Current event scope:
+
+- `app_opened`
+- `session_started`
+- `report_generated`
+
+Current payload intent:
+
+- version, OS, architecture, install channel
+- provider id and provider kind
+- active profile and security-mode flag
+- report kind and whether it was finding-scoped
+
+Out of scope for telemetry:
+
+- prompts
+- findings text
+- targets and URLs
+- evidence contents
+- screenshots
+- API keys
+- local file paths

@@ -52,6 +52,8 @@ use crate::terminal;
 use crate::truncate::TruncationPolicy;
 use crate::turn_metadata::TurnMetadataState;
 use crate::util::error_or_panic;
+use crate::uxarion_telemetry::SessionStartedEvent;
+use crate::uxarion_telemetry::UxarionTelemetryClient;
 use crate::ws_version_from_features;
 use async_channel::Receiver;
 use async_channel::Sender;
@@ -442,6 +444,7 @@ impl Codex {
         };
 
         let config = Arc::new(config);
+        let uxarion_telemetry = UxarionTelemetryClient::new(Arc::clone(&config));
         let refresh_strategy = match session_source {
             SessionSource::SubAgent(_) => crate::models_manager::manager::RefreshStrategy::Offline,
             _ => crate::models_manager::manager::RefreshStrategy::OnlineIfUncached,
@@ -532,6 +535,13 @@ impl Codex {
             persist_extended_history,
             inherited_shell_snapshot,
         };
+        uxarion_telemetry.track_session_started(SessionStartedEvent {
+            provider_id: config.model_provider_id.clone(),
+            provider_name: config.model_provider.name.clone(),
+            session_source: session_configuration.session_source.clone(),
+            active_profile: config.active_profile.clone(),
+            security_mode_enabled: security::is_security_config(config.as_ref()),
+        });
 
         // Generate a unique ID for the lifetime of this Codex session.
         let session_source_clone = session_configuration.session_source.clone();
@@ -662,6 +672,7 @@ pub(crate) struct Session {
     tx_event: Sender<Event>,
     agent_status: watch::Sender<AgentStatus>,
     out_of_band_elicitation_paused: watch::Sender<bool>,
+    _uxarion_telemetry: UxarionTelemetryClient,
     state: Mutex<SessionState>,
     /// The set of enabled features should be invariant for the lifetime of the
     /// session.
@@ -1604,6 +1615,7 @@ impl Session {
                 }),
             });
         }
+        let uxarion_telemetry = UxarionTelemetryClient::new(Arc::clone(&config));
 
         let services = SessionServices {
             // Initialize the MCP connection manager with an uninitialized
@@ -1664,7 +1676,8 @@ impl Session {
                     security::is_security_config(config.as_ref()),
                     security::resolve_zap_config(Some(config.as_ref())),
                 )
-                .await,
+                .await
+                .with_uxarion_telemetry(uxarion_telemetry.clone()),
             ),
         };
         let js_repl = Arc::new(JsReplHandle::with_node_path(
@@ -1679,6 +1692,7 @@ impl Session {
             tx_event: tx_event.clone(),
             agent_status,
             out_of_band_elicitation_paused,
+            _uxarion_telemetry: uxarion_telemetry,
             state: Mutex::new(state),
             features: config.features.clone(),
             pending_mcp_server_refresh_config: Mutex::new(None),

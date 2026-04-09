@@ -65,6 +65,38 @@ Common addresses:
 
 If ZAP has `Disable the API key` enabled, you do not need to set `api_key` in Uxarion.
 
+## Anonymous Uxarion telemetry
+
+Uxarion can optionally send anonymous product-usage events to a team-controlled HTTPS endpoint.
+
+The config lives under `[uxarion_telemetry]`.
+
+Example:
+
+```toml
+[uxarion_telemetry]
+enabled = true
+endpoint = "https://<project-ref>.supabase.co/functions/v1/telemetry-events"
+```
+
+Current event types:
+
+- `app_opened`
+- `session_started`
+- `report_generated`
+
+Current metadata includes only product-level fields such as:
+
+- app version
+- OS and architecture
+- install channel
+- provider id and kind
+- active profile
+- whether security mode was active
+
+Uxarion telemetry does not need ChatGPT auth, but it still respects the global analytics opt-out.
+If `[analytics].enabled = false`, Uxarion telemetry is disabled even when `[uxarion_telemetry].enabled = true`.
+
 ## Apps (Connectors)
 
 Use `$` in the composer to insert a connector; the popover lists accessible

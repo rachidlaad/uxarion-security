@@ -5,6 +5,9 @@ use crate::default_client::build_reqwest_client;
 use crate::function_tool::FunctionCallError;
 use crate::model_provider_info::PENTEST_LOCAL_PROVIDER_ID;
 use crate::tools::context::FunctionToolOutput;
+use crate::uxarion_telemetry::ReportGeneratedEvent;
+use crate::uxarion_telemetry::ReportGeneratedKind;
+use crate::uxarion_telemetry::UxarionTelemetryClient;
 use codex_protocol::ThreadId;
 use codex_protocol::models::ContentItem;
 use codex_protocol::models::ResponseItem;
@@ -209,6 +212,7 @@ pub(crate) struct SecuritySessionStateService {
     zap_config: SecurityZapConfig,
     inventory: SecurityToolInventory,
     state: Mutex<SecuritySessionState>,
+    uxarion_telemetry: Option<UxarionTelemetryClient>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -259,7 +263,13 @@ impl SecuritySessionStateService {
             zap_config,
             inventory,
             state: Mutex::new(initial_state),
+            uxarion_telemetry: None,
         }
+    }
+
+    pub(crate) fn with_uxarion_telemetry(mut self, telemetry: UxarionTelemetryClient) -> Self {
+        self.uxarion_telemetry = Some(telemetry);
+        self
     }
 
     pub(crate) async fn render_context_fragment(&self, history: &[ResponseItem]) -> Option<String> {
@@ -641,6 +651,13 @@ impl SecuritySessionStateService {
                     "failed to write finding report for `{finding_id}`: {err}"
                 ))
             })?;
+            if let Some(telemetry) = &self.uxarion_telemetry {
+                telemetry.track_report_generated(ReportGeneratedEvent {
+                    kind: ReportGeneratedKind::Structured,
+                    finding_scoped: true,
+                    include_evidence: Some(include_evidence),
+                });
+            }
             return Ok(report_path);
         }
 
@@ -648,6 +665,13 @@ impl SecuritySessionStateService {
         fs::write(&self.report_path, report).await.map_err(|err| {
             FunctionCallError::RespondToModel(format!("failed to write security report: {err}"))
         })?;
+        if let Some(telemetry) = &self.uxarion_telemetry {
+            telemetry.track_report_generated(ReportGeneratedEvent {
+                kind: ReportGeneratedKind::Structured,
+                finding_scoped: false,
+                include_evidence: Some(include_evidence),
+            });
+        }
         Ok(self.report_path.clone())
     }
 
@@ -702,6 +726,13 @@ impl SecuritySessionStateService {
         fs::write(&report_path, normalized).await.map_err(|err| {
             FunctionCallError::RespondToModel(format!("failed to write security report: {err}"))
         })?;
+        if let Some(telemetry) = &self.uxarion_telemetry {
+            telemetry.track_report_generated(ReportGeneratedEvent {
+                kind: ReportGeneratedKind::AiAuthored,
+                finding_scoped: finding_id.is_some(),
+                include_evidence: None,
+            });
+        }
 
         Ok(report_path)
     }

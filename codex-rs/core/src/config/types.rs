@@ -363,6 +363,36 @@ pub struct AnalyticsConfigToml {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 #[schemars(deny_unknown_fields)]
+pub struct UxarionTelemetryConfigToml {
+    /// When `false`, disables anonymous Uxarion product telemetry.
+    pub enabled: Option<bool>,
+    /// HTTPS endpoint that receives anonymous Uxarion telemetry events.
+    pub endpoint: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct UxarionTelemetryConfig {
+    pub enabled: bool,
+    pub endpoint: Option<String>,
+}
+
+impl UxarionTelemetryConfigToml {
+    pub fn resolved(self, analytics_enabled: Option<bool>) -> UxarionTelemetryConfig {
+        let endpoint = self
+            .endpoint
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        let enabled =
+            analytics_enabled != Some(false) && self.enabled.unwrap_or(endpoint.is_some());
+        UxarionTelemetryConfig {
+            enabled: enabled && endpoint.is_some(),
+            endpoint,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct FeedbackConfigToml {
     /// When `false`, disables the feedback flow across Codex product surfaces.
     pub enabled: Option<bool>,
